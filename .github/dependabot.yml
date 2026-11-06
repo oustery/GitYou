@@ -1,9 +1,10 @@
+# Only GitHub Actions are auto-updated. Library versions in
+# gradle/libs.versions.toml form a coherent set pinned to compileSdk 36 /
+# AGP 8.x; newer releases of androidx/compose/coil/hilt currently require
+# compileSdk 37 + AGP 9.1, so they are upgraded deliberately, as a set,
+# together with AGP — not one by one.
 version: 2
 updates:
-  - package-ecosystem: gradle
-    directory: /
-    schedule:
-      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:
