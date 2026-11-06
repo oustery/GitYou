@@ -21,11 +21,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,17 +39,25 @@ import androidx.navigation.compose.rememberNavController
 import com.gityou.app.R
 import com.gityou.app.ui.components.GyBottomBar
 import com.gityou.app.ui.components.GyNavigationRail
+import com.gityou.app.ui.components.LocalMarkdownFactory
 import com.gityou.app.ui.navigation.GitYouNavHost
 import com.gityou.app.ui.navigation.Route
 import com.gityou.app.ui.navigation.navigateTopLevel
 import com.gityou.app.ui.screens.auth.AuthScreen
+import com.gityou.app.ui.theme.AccentPalette
 import com.gityou.app.ui.theme.GitYouTheme
+import com.gityou.app.ui.theme.TextScale
 import com.gityou.app.ui.theme.ThemeMode
 
 private fun themeModeFrom(raw: String): ThemeMode = when (raw) {
     "light" -> ThemeMode.LIGHT
     "dark" -> ThemeMode.DARK
     else -> ThemeMode.SYSTEM
+}
+
+private fun defaultTabRoute(raw: String?): String = when (raw) {
+    Route.SEARCH, Route.NOTIFICATIONS, Route.PROFILE -> raw
+    else -> Route.HOME
 }
 
 @Composable
@@ -57,19 +69,37 @@ fun GitYouApp(
     val settings by appViewModel.settings.collectAsStateWithLifecycle()
     val unreadCount by appViewModel.unreadCount.collectAsStateWithLifecycle()
 
+    // The in-app text scale multiplies the system font scale; markdown
+    // views and every Material text follow it consistently.
+    val systemDensity = LocalDensity.current
+    val textScale = TextScale.fromKey(settings.fontScale)
+    val scaledDensity = Density(
+        density = systemDensity.density,
+        fontScale = systemDensity.fontScale * textScale.factor,
+    )
+
     GitYouTheme(
         themeMode = themeModeFrom(settings.themeMode),
         useDynamicColor = settings.dynamicColor,
+        accent = AccentPalette.fromKey(settings.accent),
+        amoled = settings.amoled,
+        expressiveMotion = settings.expressiveMotion,
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            when (val state = appState) {
-                AppViewModel.AppState.Loading -> BrandedLoading()
-                AppViewModel.AppState.SignedOut -> AuthScreen()
-                is AppViewModel.AppState.SignedIn -> MainScaffold(
-                    windowSizeClass = windowSizeClass,
-                    unreadCount = unreadCount,
-                    onRefreshUnread = appViewModel::refreshUnread,
-                )
+        CompositionLocalProvider(
+            LocalMarkdownFactory provides appViewModel.markdownFactory,
+            LocalDensity provides scaledDensity,
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                when (val state = appState) {
+                    AppViewModel.AppState.Loading -> BrandedLoading()
+                    AppViewModel.AppState.SignedOut -> AuthScreen()
+                    is AppViewModel.AppState.SignedIn -> MainScaffold(
+                        windowSizeClass = windowSizeClass,
+                        unreadCount = unreadCount,
+                        defaultTab = defaultTabRoute(settings.defaultTab),
+                        onRefreshUnread = appViewModel::refreshUnread,
+                    )
+                }
             }
         }
     }
@@ -79,12 +109,19 @@ fun GitYouApp(
 private fun MainScaffold(
     windowSizeClass: WindowWidthSizeClass,
     unreadCount: Int,
+    defaultTab: String,
     onRefreshUnread: () -> Unit,
 ) {
     val navController: NavHostController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showRail = windowSizeClass == WindowWidthSizeClass.Expanded
+
+    // Honor the "default tab" setting once per sign-in; later tab switching
+    // is entirely up to the user.
+    LaunchedEffect(Unit) {
+        if (defaultTab != Route.HOME) navController.navigateTopLevel(defaultTab)
+    }
 
     Row(modifier = Modifier.fillMaxSize()) {
         if (showRail) {

@@ -27,6 +27,13 @@ class TokenStore @Inject constructor(
     data class AppSettings(
         val themeMode: String = "system",
         val dynamicColor: Boolean = false,
+        val amoled: Boolean = false,
+        val accent: String = "indigo",
+        val fontScale: String = "normal",
+        val expressiveMotion: Boolean = true,
+        val defaultTab: String = "home",
+        val appLanguage: String = "system",
+        val renderMarkdown: Boolean = true,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -41,6 +48,13 @@ class TokenStore @Inject constructor(
         val CLIENT_ID = stringPreferencesKey("oauth_client_id")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val AMOLED = booleanPreferencesKey("amoled")
+        val ACCENT = stringPreferencesKey("accent")
+        val FONT_SCALE = stringPreferencesKey("font_scale")
+        val EXPRESSIVE_MOTION = booleanPreferencesKey("expressive_motion")
+        val DEFAULT_TAB = stringPreferencesKey("default_tab")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
+        val RENDER_MARKDOWN = booleanPreferencesKey("render_markdown")
     }
 
     @Volatile
@@ -64,6 +78,13 @@ class TokenStore @Inject constructor(
             AppSettings(
                 themeMode = prefs[Keys.THEME_MODE] ?: "system",
                 dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false,
+                amoled = prefs[Keys.AMOLED] ?: false,
+                accent = prefs[Keys.ACCENT] ?: "indigo",
+                fontScale = prefs[Keys.FONT_SCALE] ?: "normal",
+                expressiveMotion = prefs[Keys.EXPRESSIVE_MOTION] ?: true,
+                defaultTab = prefs[Keys.DEFAULT_TAB] ?: "home",
+                appLanguage = prefs[Keys.APP_LANGUAGE] ?: "system",
+                renderMarkdown = prefs[Keys.RENDER_MARKDOWN] ?: true,
             )
         }
 
@@ -93,5 +114,33 @@ class TokenStore @Inject constructor(
 
     suspend fun saveDynamicColor(enabled: Boolean) {
         dataStore.edit { it[Keys.DYNAMIC_COLOR] = enabled }
+    }
+
+    suspend fun saveAmoled(enabled: Boolean) {
+        dataStore.edit { it[Keys.AMOLED] = enabled }
+    }
+
+    suspend fun saveAccent(accent: String) {
+        dataStore.edit { it[Keys.ACCENT] = accent }
+    }
+
+    suspend fun saveFontScale(scale: String) {
+        dataStore.edit { it[Keys.FONT_SCALE] = scale }
+    }
+
+    suspend fun saveExpressiveMotion(enabled: Boolean) {
+        dataStore.edit { it[Keys.EXPRESSIVE_MOTION] = enabled }
+    }
+
+    suspend fun saveDefaultTab(tab: String) {
+        dataStore.edit { it[Keys.DEFAULT_TAB] = tab }
+    }
+
+    suspend fun saveAppLanguage(language: String) {
+        dataStore.edit { it[Keys.APP_LANGUAGE] = language }
+    }
+
+    suspend fun saveRenderMarkdown(enabled: Boolean) {
+        dataStore.edit { it[Keys.RENDER_MARKDOWN] = enabled }
     }
 }

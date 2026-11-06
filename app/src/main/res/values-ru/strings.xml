@@ -70,6 +70,9 @@
     <string name="search_empty_body">Введите имя репозитория, язык или тему.</string>
     <string name="search_no_results_title">Ничего не найдено</string>
     <string name="search_no_results_body">Нет репозиториев по запросу «%1$s».</string>
+    <string name="search_sort_best">Лучшее совпадение</string>
+    <string name="search_sort_stars">Больше звёзд</string>
+    <string name="search_sort_updated">Недавно обновлённые</string>
 
     <!-- Cards -->
     <string name="issue_row_meta">#%1$d · %2$s · %3$s</string>
@@ -79,6 +82,9 @@
     <string name="notifications_mark_all">Отметить все прочитанными</string>
     <string name="notifications_marked_all">Все уведомления отмечены прочитанными</string>
     <string name="notifications_mark_read">Отметить прочитанным</string>
+    <string name="notifications_filter_all">Все</string>
+    <string name="notifications_filter_unread">Непрочитанные</string>
+    <string name="notifications_marked_read">Отмечено как прочитанное</string>
     <string name="notifications_empty_title">Ноль уведомлений</string>
     <string name="notifications_empty_body">Новые уведомления появятся здесь.</string>
 
@@ -153,4 +159,42 @@
     <string name="settings_version_label">Версия %1$s</string>
     <string name="settings_repo_link">Проект на GitHub</string>
     <string name="settings_design_note">Сделано на Material 3 Expressive, Kotlin и Jetpack Compose</string>
+
+    <!-- Внешний вид: акценты, AMOLED, размер текста, анимации -->
+    <string name="settings_accent_label">Акцентный цвет</string>
+    <string name="settings_accent_indigo">Индиго</string>
+    <string name="settings_accent_ocean">Океан</string>
+    <string name="settings_accent_forest">Лес</string>
+    <string name="settings_accent_sunrise">Закат</string>
+    <string name="settings_amoled_label">Чёрный AMOLED</string>
+    <string name="settings_amoled_body">Чисто чёрные поверхности в тёмной теме</string>
+    <string name="settings_text_scale_label">Размер текста</string>
+    <string name="settings_text_scale_small">S</string>
+    <string name="settings_text_scale_normal">M</string>
+    <string name="settings_text_scale_large">L</string>
+    <string name="settings_text_scale_extra_large">XL</string>
+    <string name="settings_motion_label">Выразительные анимации</string>
+    <string name="settings_motion_body">Пружинная пластика Material 3 Expressive</string>
+
+    <!-- Поведение -->
+    <string name="settings_behavior_section">Поведение</string>
+    <string name="settings_default_tab_label">Стартовый раздел</string>
+    <string name="settings_default_tab_home">Главная</string>
+    <string name="settings_default_tab_search">Поиск</string>
+    <string name="settings_default_tab_notifications">Уведомления</string>
+    <string name="settings_default_tab_profile">Профиль</string>
+    <string name="settings_language_label">Язык</string>
+    <string name="settings_language_system">Системный</string>
+    <string name="settings_language_ru">Русский</string>
+    <string name="settings_language_en">Английский</string>
+    <string name="settings_language_unsupported">Доступно с Android 13+</string>
+    <string name="settings_markdown_label">Рендеринг Markdown</string>
+    <string name="settings_markdown_body">Форматировать README, задачи и комментарии</string>
+
+    <!-- О приложении -->
+    <string name="settings_licenses_title">Благодарности</string>
+    <string name="settings_licenses_body">GitYou построен на открытом коде: Markwon, Retrofit, OkHttp, Coil, kotlinx.serialization, Hilt и Jetpack Compose. Дизайн Material 3 Expressive от Google.</string>
+    <string name="issue_new_tab_write">Редактор</string>
+    <string name="issue_new_tab_preview">Предпросмотр</string>
+    <string name="issue_new_preview_empty">Пока нечего предпросматривать.</string>
 </resources>

@@ -12,19 +12,37 @@ import androidx.compose.ui.platform.LocalContext
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** User-selectable app-wide text scale applied through LocalDensity. */
+enum class TextScale(val key: String, val factor: Float) {
+    SMALL("small", 0.9f),
+    NORMAL("normal", 1.0f),
+    LARGE("large", 1.15f),
+    EXTRA_LARGE("extra_large", 1.3f);
+
+    companion object {
+        fun fromKey(raw: String?): TextScale =
+            entries.firstOrNull { it.key == raw } ?: NORMAL
+    }
+}
+
 /**
  * GitYou theme.
  *
- * - Branded indigo/coral fallback on all API levels.
+ * - Branded fallback palettes on all API levels with four selectable accents.
+ * - Optional true-black surfaces for OLED panels in dark mode.
  * - Material You dynamic color on Android 12+ behind a user setting.
  * - Light and dark schemes are designed independently, never inverted.
- * - Expressive motion comes from the built-in [MotionScheme.expressive].
+ * - Motion switches between the expressive scheme and the standard one so
+ *   users who prefer calm interfaces can turn expressive springs off.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GitYouTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     useDynamicColor: Boolean = false,
+    accent: AccentPalette = AccentPalette.INDIGO,
+    amoled: Boolean = false,
+    expressiveMotion: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (themeMode) {
@@ -37,14 +55,14 @@ fun GitYouTheme(
         val context = LocalContext.current
         if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
-        if (darkTheme) DarkColors else LightColors
+        if (darkTheme) darkColors(accent, amoled) else lightColors(accent)
     }
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
         shapes = AppShapes,
-        motionScheme = MotionScheme.expressive(),
+        motionScheme = if (expressiveMotion) MotionScheme.expressive() else MotionScheme.standard(),
         content = content,
     )
 }

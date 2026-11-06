@@ -51,6 +51,7 @@ import coil3.compose.AsyncImage
 import com.gityou.app.R
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.ui.components.EyebrowLabel
+import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
@@ -214,9 +215,8 @@ private fun IssueHeader(detail: IssueDetailUi) {
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(
-                    body,
-                    style = MaterialTheme.typography.bodyMedium,
+                MarkdownText(
+                    markdown = body,
                     modifier = Modifier.padding(Spacing.lg),
                 )
             }
@@ -287,7 +287,7 @@ private fun CommentsSection(
                         }
                         comment.body?.let {
                             Spacer(Modifier.height(Spacing.sm))
-                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                            MarkdownText(markdown = it)
                         }
                     }
                 }

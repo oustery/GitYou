@@ -70,6 +70,9 @@
     <string name="search_empty_body">Type a repository name, language or topic.</string>
     <string name="search_no_results_title">Nothing found</string>
     <string name="search_no_results_body">No repositories match “%1$s”.</string>
+    <string name="search_sort_best">Best match</string>
+    <string name="search_sort_stars">Most stars</string>
+    <string name="search_sort_updated">Recently updated</string>
 
     <!-- Cards -->
     <string name="issue_row_meta">#%1$d · %2$s · %3$s</string>
@@ -79,6 +82,9 @@
     <string name="notifications_mark_all">Mark all as read</string>
     <string name="notifications_marked_all">All notifications marked as read</string>
     <string name="notifications_mark_read">Mark as read</string>
+    <string name="notifications_filter_all">All</string>
+    <string name="notifications_filter_unread">Unread</string>
+    <string name="notifications_marked_read">Marked as read</string>
     <string name="notifications_empty_title">Inbox zero</string>
     <string name="notifications_empty_body">New notifications will show up here.</string>
 
@@ -153,4 +159,42 @@
     <string name="settings_version_label">Version %1$s</string>
     <string name="settings_repo_link">Project on GitHub</string>
     <string name="settings_design_note">Built with Material 3 Expressive, Kotlin and Jetpack Compose</string>
+
+    <!-- Appearance: accent palettes, AMOLED, text scale, motion -->
+    <string name="settings_accent_label">Accent color</string>
+    <string name="settings_accent_indigo">Indigo</string>
+    <string name="settings_accent_ocean">Ocean</string>
+    <string name="settings_accent_forest">Forest</string>
+    <string name="settings_accent_sunrise">Sunrise</string>
+    <string name="settings_amoled_label">True black (AMOLED)</string>
+    <string name="settings_amoled_body">Pure black surfaces in dark theme</string>
+    <string name="settings_text_scale_label">Text size</string>
+    <string name="settings_text_scale_small">S</string>
+    <string name="settings_text_scale_normal">M</string>
+    <string name="settings_text_scale_large">L</string>
+    <string name="settings_text_scale_extra_large">XL</string>
+    <string name="settings_motion_label">Expressive animations</string>
+    <string name="settings_motion_body">Springy Material 3 Expressive motion</string>
+
+    <!-- Behavior -->
+    <string name="settings_behavior_section">Behavior</string>
+    <string name="settings_default_tab_label">Start screen</string>
+    <string name="settings_default_tab_home">Home</string>
+    <string name="settings_default_tab_search">Search</string>
+    <string name="settings_default_tab_notifications">Notifications</string>
+    <string name="settings_default_tab_profile">Profile</string>
+    <string name="settings_language_label">Language</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_ru">Russian</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_unsupported">Available on Android 13+</string>
+    <string name="settings_markdown_label">Render Markdown</string>
+    <string name="settings_markdown_body">Format READMEs, issue bodies and comments</string>
+
+    <!-- About -->
+    <string name="settings_licenses_title">Acknowledgements</string>
+    <string name="settings_licenses_body">GitYou stands on open source: Markwon, Retrofit, OkHttp, Coil, kotlinx.serialization, Hilt and Jetpack Compose. Material 3 Expressive design by Google.</string>
+    <string name="issue_new_tab_write">Write</string>
+    <string name="issue_new_tab_preview">Preview</string>
+    <string name="issue_new_preview_empty">Nothing to preview yet.</string>
 </resources>

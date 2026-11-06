@@ -49,6 +49,8 @@ interface GitHubApi {
         @Query("q") query: String,
         @Query("per_page") perPage: Int = 30,
         @Query("page") page: Int = 1,
+        @Query("sort") sort: String? = null,
+        @Query("order") order: String = "desc",
     ): SearchReposResponse
 
     // ---- Repository ---------------------------------------------------------

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +48,7 @@ fun SearchScreen(
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -76,6 +80,25 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.lg, vertical = Spacing.md),
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                listOf(
+                    SearchSort.BEST to stringResource(R.string.search_sort_best),
+                    SearchSort.STARS to stringResource(R.string.search_sort_stars),
+                    SearchSort.UPDATED to stringResource(R.string.search_sort_updated),
+                ).forEach { (option, label) ->
+                    FilterChip(
+                        selected = sort == option,
+                        onClick = { viewModel.setSort(option) },
+                        label = { Text(label) },
+                    )
+                }
+            }
 
             StateScreen(state = results, onRetry = { viewModel.onQueryChanged(query) }) { ui ->
                 if (!ui.searched) {

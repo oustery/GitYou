@@ -4,6 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -34,12 +39,17 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -51,7 +61,9 @@ import com.gityou.app.BuildConfig
 import com.gityou.app.R
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.theme.AccentPalette
 import com.gityou.app.ui.theme.Spacing
+import com.gityou.app.ui.theme.accentPreviewColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +74,21 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showLicenses by remember { mutableStateOf(false) }
+    val languageSupported = Build.VERSION.SDK_INT >= VERSION_CODES.TIRAMISU
+
+    if (showLicenses) {
+        AlertDialog(
+            onDismissRequest = { showLicenses = false },
+            title = { Text(stringResource(R.string.settings_licenses_title)) },
+            text = { Text(stringResource(R.string.settings_licenses_body)) },
+            confirmButton = {
+                TextButton(onClick = { showLicenses = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -87,6 +114,7 @@ fun SettingsScreen(
         ) {
             // ---- Appearance ----
             EyebrowLabel(stringResource(R.string.settings_appearance_section))
+
             Text(
                 stringResource(R.string.settings_theme_label),
                 style = MaterialTheme.typography.titleMedium,
@@ -112,39 +140,157 @@ fun SettingsScreen(
                 }
             }
 
-            Row(
+            SwitchRow(
+                title = stringResource(R.string.settings_dynamic_color_label),
+                body = stringResource(R.string.settings_dynamic_color_body),
+                checked = settings.dynamicColor,
+                enabled = Build.VERSION.SDK_INT >= VERSION_CODES.S,
+                onChecked = viewModel::setDynamicColor,
+            )
+
+            // Accent palette picks only apply to the branded fallback scheme.
+            if (!settings.dynamicColor) {
+                Text(
+                    stringResource(R.string.settings_accent_label),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = Spacing.lg),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
+                ) {
+                    listOf(
+                        AccentPalette.INDIGO to stringResource(R.string.settings_accent_indigo),
+                        AccentPalette.OCEAN to stringResource(R.string.settings_accent_ocean),
+                        AccentPalette.FOREST to stringResource(R.string.settings_accent_forest),
+                        AccentPalette.SUNRISE to stringResource(R.string.settings_accent_sunrise),
+                    ).forEach { (palette, label) ->
+                        AccentSwatch(
+                            label = label,
+                            color = accentPreviewColor(palette),
+                            selected = settings.accent == palette.key,
+                            onClick = { viewModel.setAccent(palette.key) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            SwitchRow(
+                title = stringResource(R.string.settings_amoled_label),
+                body = stringResource(R.string.settings_amoled_body),
+                checked = settings.amoled,
+                onChecked = viewModel::setAmoled,
+            )
+
+            Text(
+                stringResource(R.string.settings_text_scale_label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = Spacing.lg),
+            )
+            SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Spacing.lg)
-                    // The whole row toggles, so the target is comfortably >= 48dp;
-                    // the Switch itself becomes status-only to avoid double taps.
-                    .toggleable(
-                        value = settings.dynamicColor,
-                        enabled = Build.VERSION.SDK_INT >= VERSION_CODES.S,
-                        role = Role.Switch,
-                        onValueChange = viewModel::setDynamicColor,
-                    )
-                    .padding(vertical = Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(top = Spacing.md),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_dynamic_color_label),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        stringResource(R.string.settings_dynamic_color_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                val scales = listOf(
+                    "small" to stringResource(R.string.settings_text_scale_small),
+                    "normal" to stringResource(R.string.settings_text_scale_normal),
+                    "large" to stringResource(R.string.settings_text_scale_large),
+                    "extra_large" to stringResource(R.string.settings_text_scale_extra_large),
+                )
+                scales.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = settings.fontScale == value,
+                        onClick = { viewModel.setFontScale(value) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = scales.size),
+                        label = { Text(label) },
                     )
                 }
-                Spacer(Modifier.width(Spacing.lg))
-                Switch(
-                    checked = settings.dynamicColor,
-                    onCheckedChange = null,
-                    enabled = Build.VERSION.SDK_INT >= VERSION_CODES.S,
+            }
+
+            SwitchRow(
+                title = stringResource(R.string.settings_motion_label),
+                body = stringResource(R.string.settings_motion_body),
+                checked = settings.expressiveMotion,
+                onChecked = viewModel::setExpressiveMotion,
+            )
+
+            Spacer(Modifier.height(Spacing.xl))
+
+            // ---- Behavior ----
+            EyebrowLabel(stringResource(R.string.settings_behavior_section))
+
+            Text(
+                stringResource(R.string.settings_default_tab_label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = Spacing.sm),
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.md),
+            ) {
+                val tabs = listOf(
+                    "home" to stringResource(R.string.settings_default_tab_home),
+                    "search" to stringResource(R.string.settings_default_tab_search),
+                    "notifications" to stringResource(R.string.settings_default_tab_notifications),
+                    "profile" to stringResource(R.string.settings_default_tab_profile),
+                )
+                tabs.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = settings.defaultTab == value,
+                        onClick = { viewModel.setDefaultTab(value) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
+                        label = {
+                            Text(label, style = MaterialTheme.typography.labelMedium)
+                        },
+                    )
+                }
+            }
+
+            Text(
+                stringResource(R.string.settings_language_label),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = Spacing.lg),
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.md),
+            ) {
+                val languages = listOf(
+                    "system" to stringResource(R.string.settings_language_system),
+                    "ru" to stringResource(R.string.settings_language_ru),
+                    "en" to stringResource(R.string.settings_language_en),
+                )
+                languages.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = settings.appLanguage == value,
+                        onClick = { viewModel.setAppLanguage(value) },
+                        enabled = value == "system" || languageSupported,
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size),
+                        label = { Text(label) },
+                    )
+                }
+            }
+            if (!languageSupported) {
+                Text(
+                    stringResource(R.string.settings_language_unsupported),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = Spacing.sm),
                 )
             }
+
+            SwitchRow(
+                title = stringResource(R.string.settings_markdown_label),
+                body = stringResource(R.string.settings_markdown_body),
+                checked = settings.renderMarkdown,
+                onChecked = viewModel::setRenderMarkdown,
+            )
 
             Spacer(Modifier.height(Spacing.xl))
 
@@ -216,20 +362,131 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = Spacing.sm),
                     )
-                    Button(
-                        onClick = {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou")),
-                            )
-                        },
-                        modifier = Modifier.padding(top = Spacing.md),
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = Spacing.md),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
-                        Icon(Icons.Filled.OpenInNew, contentDescription = null)
-                        Spacer(Modifier.width(Spacing.sm))
-                        Text(stringResource(R.string.settings_repo_link))
+                        Button(
+                            onClick = {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou")),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                            Spacer(Modifier.width(Spacing.sm))
+                            Text(stringResource(R.string.settings_repo_link), maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = { showLicenses = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_licenses_title),
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
             }
+            Spacer(Modifier.height(Spacing.xl))
         }
+    }
+}
+
+/** Setting row with title, description and a status-only switch. */
+@Composable
+private fun SwitchRow(
+    title: String,
+    body: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Spacing.lg)
+            // The whole row toggles, so the target is comfortably >= 48dp;
+            // the Switch itself becomes status-only to avoid double taps.
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onChecked,
+            )
+            .padding(vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(Spacing.lg))
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            enabled = enabled,
+        )
+    }
+}
+
+/** Circular brand-color swatch with a label and selection ring. */
+@Composable
+private fun AccentSwatch(
+    label: String,
+    color: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val ringColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    Column(
+        modifier = modifier.selectable(
+            selected = selected,
+            role = Role.RadioButton,
+            onClick = onClick,
+        ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = color,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .then(
+                    if (selected) {
+                        Modifier.border(
+                            width = 3.dp,
+                            color = ringColor,
+                            shape = CircleShape,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {}
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(top = Spacing.xs),
+        )
     }
 }

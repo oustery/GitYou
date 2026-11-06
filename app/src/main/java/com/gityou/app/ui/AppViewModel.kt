@@ -6,6 +6,7 @@ import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.store.TokenStore
+import com.gityou.app.ui.components.MarkdownFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ class AppViewModel @Inject constructor(
     private val tokenStore: TokenStore,
     private val authRepository: AuthRepository,
     private val notificationsRepository: NotificationsRepository,
+    val markdownFactory: MarkdownFactory,
 ) : ViewModel() {
 
     sealed interface AppState {

@@ -1,8 +1,16 @@
 package com.gityou.app.ui.navigation
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -26,6 +34,16 @@ fun NavHostController.navigateTopLevel(route: String) {
     }
 }
 
+/*
+ * Expressive navigation motion: quiet fade effects paired with a restrained
+ * spring slide. Details arrive from the right and leave back to the right;
+ * nothing bounces, reading order stays stable.
+ */
+private const val ENTER_FADE_MS = 240
+private const val EXIT_FADE_MS = 160
+
+private val springSpec = spring<IntOffset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+
 @Composable
 fun GitYouNavHost(
     navController: NavHostController,
@@ -36,6 +54,22 @@ fun GitYouNavHost(
         navController = navController,
         startDestination = Route.HOME,
         modifier = modifier,
+        enterTransition = {
+            fadeIn(tween(ENTER_FADE_MS)) +
+                slideInHorizontally(springSpec) { it / 8 }
+        },
+        exitTransition = {
+            fadeOut(tween(EXIT_FADE_MS)) +
+                slideOutHorizontally(springSpec) { -it / 10 }
+        },
+        popEnterTransition = {
+            fadeIn(tween(ENTER_FADE_MS)) +
+                slideInHorizontally(springSpec) { -it / 8 }
+        },
+        popExitTransition = {
+            fadeOut(tween(EXIT_FADE_MS)) +
+                slideOutHorizontally(springSpec) { it / 10 }
+        },
     ) {
         composable(Route.HOME) {
             HomeScreen(

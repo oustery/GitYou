@@ -32,13 +32,13 @@ GitYou is built **Kotlin-first** with Jetpack Compose and Material 3 Expressive:
 |---|---|
 | **Auth** | OAuth Device Flow (enter a code on github.com) with a personal access token fallback |
 | **Home** | Your repositories, refreshed with pull-to-refresh |
-| **Search** | Live, debounced repository search across GitHub |
+| **Search** | Live, debounced repository search with best-match / stars / recent-updates sorting |
 | **Repository** | Overview with stats, README (rendered markdown), star/fork actions, code browser with file viewer |
-| **Issues & PRs** | Open/closed lists, details, comments, creating issues and commenting — all from the app |
-| **Notifications** | Unread feed, mark one/all as read, tap-through to the conversation |
+| **Issues & PRs** | Open/closed lists, fully rendered markdown bodies and comments, comments, creating issues with a live markdown preview — all from the app |
+| **Notifications** | Unread feed with All/Unread filters, swipe a card to mark it read, mark all, tap-through to the conversation |
 | **Profile** | Avatar, bio, followers/following, repositories and stars tabs |
-| **Theming** | System / light / dark themes, optional Material You dynamic color (Android 12+) |
-| **Localization** | English and Russian, fully parity-checked |
+| **Theming** | System / light / dark themes, four accent palettes (Indigo, Ocean, Forest, Sunrise), true-black AMOLED mode, Material You dynamic color (Android 12+), in-app text scale, toggleable expressive motion |
+| **Localization** | English and Russian with an in-app language switcher (Android 13+), fully parity-checked |
 | **Adaptive layout** | Bottom navigation on phones, navigation rail on expanded widths |
 
 ## Architecture
@@ -102,11 +102,12 @@ No OAuth App yet? Sign in with a personal access token (`repo`, `read:user`, `no
 
 The full token reference — palette, typography, shapes, motion and component guidance — lives in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Highlights:
 
-- Independent light/dark schemes around an **indigo** primary and a **coral** tertiary accent;
+- Independent light/dark schemes around an **indigo** primary and a **coral** tertiary accent (plus Ocean, Forest and Sunrise accent palettes, and a true-black AMOLED variant);
 - shape family 12/20/32/48 dp;
-- `MotionScheme.expressive()` with spring-based state changes;
+- `MotionScheme.expressive()` (toggleable) with spring-based state changes and expressive navigation transitions;
 - theme-aware adaptive launcher icon (`values-night`) plus a monochrome layer for themed icons;
-- Material You dynamic color behind a user setting.
+- Material You dynamic color behind a user setting;
+- **Roboto Flex** variable font instantiated per weight for editorial display type.
 
 ## Roadmap
 

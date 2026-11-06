@@ -13,9 +13,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
+
+/** Sort options mapped to the GitHub search API `sort` parameter. */
+enum class SearchSort(val apiValue: String?) {
+    BEST(null),
+    STARS("stars"),
+    UPDATED("updated"),
+}
 
 data class SearchUi(
     val query: String = "",
@@ -23,6 +31,7 @@ data class SearchUi(
     val nextPage: Int? = null,
     val loadingMore: Boolean = false,
     val searched: Boolean = false,
+    val sort: SearchSort = SearchSort.BEST,
 ) {
     val hasMore: Boolean get() = nextPage != null
 }
@@ -36,26 +45,36 @@ class SearchViewModel @Inject constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
+    private val _sort = MutableStateFlow(SearchSort.BEST)
+    val sort: StateFlow<SearchSort> = _sort.asStateFlow()
+
     private val _results = MutableStateFlow<UiState<SearchUi>>(UiState.Content(SearchUi()))
     val results: StateFlow<UiState<SearchUi>> = _results.asStateFlow()
 
     init {
         viewModelScope.launch {
-            snapshotFlow { _query.value }
-                .debounce(600)
-                .collectLatest { query ->
+            combine(
+                snapshotFlow { _query.value }.debounce(600),
+                snapshotFlow { _sort.value },
+            ) { query, sort -> query to sort }
+                .collectLatest { (query, sort) ->
                     if (query.isBlank()) {
-                        _results.value = UiState.Content(SearchUi())
+                        _results.value = UiState.Content(SearchUi(sort = sort))
                     } else {
                         _results.value = UiState.Loading
                         _results.value = try {
-                            val pageData = reposRepository.search(query.trim(), page = 1)
+                            val pageData = reposRepository.search(
+                                query = query.trim(),
+                                page = 1,
+                                sort = sort.apiValue,
+                            )
                             UiState.Content(
                                 SearchUi(
                                     query = query.trim(),
                                     repos = pageData.items,
                                     nextPage = pageData.nextPage,
                                     searched = true,
+                                    sort = sort,
                                 ),
                             )
                         } catch (t: Throwable) {
@@ -70,13 +89,21 @@ class SearchViewModel @Inject constructor(
         _query.value = value
     }
 
+    fun setSort(sort: SearchSort) {
+        _sort.value = sort
+    }
+
     fun loadMore() {
         val current = (_results.value as? UiState.Content)?.value ?: return
         if (current.loadingMore || current.nextPage == null) return
         viewModelScope.launch {
             _results.value = UiState.Content(current.copy(loadingMore = true))
             _results.value = try {
-                val page = reposRepository.search(current.query, current.nextPage)
+                val page = reposRepository.search(
+                    query = current.query,
+                    page = current.nextPage,
+                    sort = current.sort.apiValue,
+                )
                 UiState.Content(
                     current.copy(
                         repos = current.repos + page.items,

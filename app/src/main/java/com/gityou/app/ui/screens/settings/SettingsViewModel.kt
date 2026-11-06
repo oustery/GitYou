@@ -47,6 +47,34 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { tokenStore.saveDynamicColor(enabled) }
     }
 
+    fun setAmoled(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveAmoled(enabled) }
+    }
+
+    fun setAccent(accent: String) {
+        viewModelScope.launch { tokenStore.saveAccent(accent) }
+    }
+
+    fun setFontScale(scale: String) {
+        viewModelScope.launch { tokenStore.saveFontScale(scale) }
+    }
+
+    fun setExpressiveMotion(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveExpressiveMotion(enabled) }
+    }
+
+    fun setDefaultTab(tab: String) {
+        viewModelScope.launch { tokenStore.saveDefaultTab(tab) }
+    }
+
+    fun setAppLanguage(language: String) {
+        viewModelScope.launch { tokenStore.saveAppLanguage(language) }
+    }
+
+    fun setRenderMarkdown(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveRenderMarkdown(enabled) }
+    }
+
     fun signOut() {
         viewModelScope.launch { authRepository.signOut() }
     }

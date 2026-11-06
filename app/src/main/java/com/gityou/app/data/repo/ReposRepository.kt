@@ -22,8 +22,8 @@ class ReposRepository @Inject constructor(
 
     suspend fun myStars(page: Int): Page<Repo> = LinkHeaderParser.pageFromResponse(api.myStars(page = page))
 
-    suspend fun search(query: String, page: Int): Page<Repo> {
-        val result = api.searchRepos(query = query, page = page)
+    suspend fun search(query: String, page: Int, sort: String? = null): Page<Repo> {
+        val result = api.searchRepos(query = query, page = page, sort = sort)
         val nextPage = if (result.items.isNotEmpty()) page + 1 else null
         return Page(items = result.items, nextPage = nextPage)
     }

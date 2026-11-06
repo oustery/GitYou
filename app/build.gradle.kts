@@ -15,8 +15,8 @@ android {
         applicationId = "com.gityou.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -139,6 +139,12 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation(libs.markwon.core)
+    implementation(libs.markwon.html)
+    implementation(libs.markwon.ext.tables)
+    implementation(libs.markwon.ext.tasklist)
+    implementation(libs.markwon.ext.strikethrough)
+    implementation(libs.markwon.linkify)
+    implementation(libs.markwon.image)
 
     testImplementation(libs.junit)
 }
