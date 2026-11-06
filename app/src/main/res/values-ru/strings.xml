@@ -9,6 +9,9 @@
     <string name="action_clear">Очистить</string>
     <string name="action_refresh">Обновить</string>
     <string name="action_back">Назад</string>
+    <string name="action_copy">Копировать</string>
+    <string name="action_close">Закрыть</string>
+    <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
 
     <!-- Errors -->
     <string name="error_unauthorized">Сессия истекла или токен недействителен. Войдите заново.</string>
@@ -104,6 +107,7 @@
     <string name="repo_readme_section">README</string>
     <string name="repo_code_root">Корень</string>
     <string name="repo_code_empty">Папка пуста</string>
+    <string name="repo_branch_select">Выбрать ветку</string>
     <string name="repo_issues_empty_title">Нет issues</string>
     <string name="repo_issues_empty_body">Issues с выбранным статусом появятся здесь.</string>
     <string name="repo_pulls_empty_title">Нет pull request’ов</string>

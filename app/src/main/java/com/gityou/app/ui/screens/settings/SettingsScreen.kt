@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,7 +115,16 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Spacing.lg),
+                    .padding(top = Spacing.lg)
+                    // The whole row toggles, so the target is comfortably >= 48dp;
+                    // the Switch itself becomes status-only to avoid double taps.
+                    .toggleable(
+                        value = settings.dynamicColor,
+                        enabled = Build.VERSION.SDK_INT >= VERSION_CODES.S,
+                        role = Role.Switch,
+                        onValueChange = viewModel::setDynamicColor,
+                    )
+                    .padding(vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -127,9 +138,10 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                Spacer(Modifier.width(Spacing.lg))
                 Switch(
                     checked = settings.dynamicColor,
-                    onCheckedChange = viewModel::setDynamicColor,
+                    onCheckedChange = null,
                     enabled = Build.VERSION.SDK_INT >= VERSION_CODES.S,
                 )
             }

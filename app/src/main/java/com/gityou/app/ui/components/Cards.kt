@@ -50,6 +50,7 @@ fun RepoCard(
     repo: Repo,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    showAvatar: Boolean = true,
 ) {
     Surface(
         modifier = modifier
@@ -61,14 +62,18 @@ fun RepoCard(
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = repo.owner?.avatarUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape),
-                )
-                Spacer(Modifier.width(Spacing.sm))
+                // In "my repositories" the same avatar would repeat on every
+                // row; callers hide it there for a quieter, cleaner list.
+                if (showAvatar) {
+                    AsyncImage(
+                        model = repo.owner?.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape),
+                    )
+                    Spacer(Modifier.width(Spacing.sm))
+                }
                 Text(
                     repo.fullName ?: repo.name,
                     style = MaterialTheme.typography.titleMedium,

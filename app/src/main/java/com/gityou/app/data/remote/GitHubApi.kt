@@ -1,6 +1,7 @@
 package com.gityou.app.data.remote
 
 import com.gityou.app.data.remote.dto.Comment
+import com.gityou.app.data.remote.dto.Branch
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.remote.dto.CreateCommentRequest
 import com.gityou.app.data.remote.dto.CreateIssueRequest
@@ -57,6 +58,14 @@ interface GitHubApi {
         @Path("owner") owner: String,
         @Path("repo") repo: String,
     ): Repo
+
+    /** Branches available for the code browser. */
+    @GET("repos/{owner}/{repo}/branches")
+    suspend fun branches(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 100,
+    ): List<Branch>
 
     /** Raw markdown of the README. */
     @GET("repos/{owner}/{repo}/readme")

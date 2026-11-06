@@ -154,7 +154,13 @@ fun ProfileScreen(
                             val ownerLogin = repo.owner?.login
                                 ?: repo.fullName?.substringBefore('/') ?: ""
                             if (ownerLogin.isNotEmpty()) {
-                                RepoCard(repo = repo, onClick = { onOpenRepo(ownerLogin, repo.name) })
+                                RepoCard(
+                                    repo = repo,
+                                    // Own repos: one repeated avatar adds nothing;
+                                    // stars are other people's repos, keep avatars.
+                                    showAvatar = ui.selectedTab == 1,
+                                    onClick = { onOpenRepo(ownerLogin, repo.name) },
+                                )
                                 Spacer(Modifier.height(Spacing.md))
                             }
                         }

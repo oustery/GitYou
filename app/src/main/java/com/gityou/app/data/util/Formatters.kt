@@ -28,6 +28,26 @@ object Formatters {
         else -> value.toString()
     }
 
+    /** Human-readable file size, localized for RU and EN: 249 -> "249 Б"/"249 B". */
+    fun bytes(value: Long): String {
+        val ru = Locale.getDefault().language == "ru"
+        val unit = when {
+            value < 1024 -> if (ru) "Б" else "B"
+            value < 1024 * 1024 -> if (ru) "КБ" else "KB"
+            else -> if (ru) "МБ" else "MB"
+        }
+        val scaled = when {
+            value < 1024 -> value.toDouble()
+            value < 1024 * 1024 -> value / 1024.0
+            else -> value / 1024.0 / 1024.0
+        }
+        return if (scaled % 1.0 == 0.0 && value < 1024) {
+            "${scaled.toInt()} $unit"
+        } else {
+            "%.1f $unit".format(scaled)
+        }
+    }
+
     private fun monthShort(month: Int): String = when (month) {
         1 -> "Jan"; 2 -> "Feb"; 3 -> "Mar"; 4 -> "Apr"; 5 -> "May"; 6 -> "Jun"
         7 -> "Jul"; 8 -> "Aug"; 9 -> "Sep"; 10 -> "Oct"; 11 -> "Nov"; else -> "Dec"

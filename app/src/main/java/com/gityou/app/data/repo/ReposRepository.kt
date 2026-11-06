@@ -1,6 +1,7 @@
 package com.gityou.app.data.repo
 
 import com.gityou.app.data.remote.GitHubApi
+import com.gityou.app.data.remote.dto.Branch
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.Page
@@ -28,6 +29,9 @@ class ReposRepository @Inject constructor(
     }
 
     suspend fun repo(owner: String, name: String): Repo = api.repo(owner, name)
+
+    suspend fun branches(owner: String, name: String): List<String> =
+        api.branches(owner, name).map { it.name }
 
     suspend fun readme(owner: String, name: String): String = api.readme(owner, name)
 

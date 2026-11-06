@@ -31,6 +31,12 @@ data class License(
 )
 
 @Serializable
+data class Branch(
+    @SerialName("name") val name: String,
+    @SerialName("protected") val isProtected: Boolean = false,
+)
+
+@Serializable
 data class ContentItem(
     @SerialName("name") val name: String,
     @SerialName("path") val path: String,

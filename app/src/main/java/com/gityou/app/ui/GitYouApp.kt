@@ -1,5 +1,10 @@
 package com.gityou.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +36,7 @@ import com.gityou.app.R
 import com.gityou.app.ui.components.GyBottomBar
 import com.gityou.app.ui.components.GyNavigationRail
 import com.gityou.app.ui.navigation.GitYouNavHost
+import com.gityou.app.ui.navigation.Route
 import com.gityou.app.ui.navigation.navigateTopLevel
 import com.gityou.app.ui.screens.auth.AuthScreen
 import com.gityou.app.ui.theme.GitYouTheme
@@ -89,9 +95,17 @@ private fun MainScaffold(
         Scaffold(
             modifier = Modifier.weight(1f),
             bottomBar = {
-                if (!showRail) {
-                    GyBottomBar(currentRoute, unreadCount) { route ->
-                        navController.navigateTopLevel(route)
+                // Detail screens (repo, issue, settings) use the full height;
+                // the bar slides away instead of eating content space.
+                AnimatedVisibility(
+                    visible = currentRoute in Route.TOP_LEVEL,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                ) {
+                    if (!showRail) {
+                        GyBottomBar(currentRoute, unreadCount) { route ->
+                            navController.navigateTopLevel(route)
+                        }
                     }
                 }
             },

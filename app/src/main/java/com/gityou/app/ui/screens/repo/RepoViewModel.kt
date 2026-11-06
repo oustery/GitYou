@@ -40,6 +40,8 @@ data class FileContentUi(
 data class RepoDetailUi(
     val repo: Repo,
     val readme: UiState<String> = UiState.Loading,
+    val branches: List<String> = emptyList(),
+    val selectedBranch: String? = null,
     val currentPath: String = "",
     val contents: List<ContentItem> = emptyList(),
     val contentsLoading: Boolean = false,
@@ -49,7 +51,10 @@ data class RepoDetailUi(
     val starBusy: Boolean = false,
     val selectedTab: Int = 0,
     val fileContent: FileContentUi? = null,
-)
+) {
+    /** Branch the code browser is showing; falls back to the default one. */
+    val activeBranch: String get() = selectedBranch ?: repo.defaultBranch
+}
 
 @HiltViewModel
 class RepoViewModel @Inject constructor(
@@ -86,6 +91,7 @@ class RepoViewModel @Inject constructor(
                 loadContents("")
                 loadIssues()
                 loadPulls()
+                loadBranches()
             } catch (t: Throwable) {
                 _state.value = UiState.Error(ApiErrors.keyOf(t))
             }
@@ -102,7 +108,8 @@ class RepoViewModel @Inject constructor(
 
     // ---- README ----
 
-    private fun loadReadme() {
+    /** Public so the inline README error can offer a retry. */
+    fun loadReadme() {
         viewModelScope.launch {
             patch { it.copy(readme = UiState.Loading) }
             val newState = try {
@@ -116,11 +123,26 @@ class RepoViewModel @Inject constructor(
 
     // ---- Code ----
 
+    private fun loadBranches() {
+        viewModelScope.launch {
+            val names = runCatching { reposRepository.branches(owner, repoName) }
+                .getOrDefault(emptyList())
+            patch { it.copy(branches = names) }
+        }
+    }
+
+    fun selectBranch(name: String) {
+        val current = (_state.value as? UiState.Content)?.value ?: return
+        if (name == current.activeBranch) return
+        patch { it.copy(selectedBranch = name) }
+        loadContents(current.currentPath)
+    }
+
     fun loadContents(path: String) {
         viewModelScope.launch {
             patch { it.copy(contentsLoading = true, currentPath = path) }
             try {
-                val ref = (_state.value as? UiState.Content)?.value?.repo?.defaultBranch
+                val ref = (_state.value as? UiState.Content)?.value?.activeBranch
                 val items = reposRepository.contents(owner, repoName, path, ref)
                 patch { it.copy(contents = items, contentsLoading = false) }
             } catch (t: Throwable) {
@@ -140,7 +162,7 @@ class RepoViewModel @Inject constructor(
     fun openFile(item: ContentItem) {
         viewModelScope.launch {
             try {
-                val ref = (_state.value as? UiState.Content)?.value?.repo?.defaultBranch
+                val ref = (_state.value as? UiState.Content)?.value?.activeBranch
                 val text = reposRepository.fileContent(owner, repoName, item.path, ref)
                 patch { it.copy(fileContent = FileContentUi(name = item.name, text = text)) }
             } catch (t: Throwable) {

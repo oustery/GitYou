@@ -129,6 +129,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.scalars)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)

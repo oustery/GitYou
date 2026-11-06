@@ -81,7 +81,11 @@ fun HomeScreen(
                             val ownerLogin = repo.owner?.login
                                 ?: repo.fullName?.substringBefore('/') ?: ""
                             if (ownerLogin.isNotEmpty()) {
-                                RepoCard(repo = repo, onClick = { onOpenRepo(ownerLogin, repo.name) })
+                                RepoCard(
+                                    repo = repo,
+                                    showAvatar = false,
+                                    onClick = { onOpenRepo(ownerLogin, repo.name) },
+                                )
                                 androidx.compose.foundation.layout.Spacer(Modifier.height(Spacing.md))
                             }
                         }

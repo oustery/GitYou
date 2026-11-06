@@ -12,6 +12,9 @@ object Route {
     const val ISSUE = "issue/{owner}/{name}/{number}?isPull={isPull}"
     const val NEW_ISSUE = "newIssue/{owner}/{name}"
 
+    /** Routes that keep the bottom navigation bar visible. */
+    val TOP_LEVEL = setOf(HOME, SEARCH, NOTIFICATIONS, PROFILE)
+
     fun repo(owner: String, name: String) = "repo/$owner/$name"
     fun issue(owner: String, name: String, number: Int, isPull: Boolean) =
         "issue/$owner/$name/$number?isPull=$isPull"

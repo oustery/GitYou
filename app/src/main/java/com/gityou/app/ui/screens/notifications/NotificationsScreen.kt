@@ -49,6 +49,7 @@ import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,6 +62,10 @@ fun NotificationsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+
+    // "Mark all read" is dead weight when nothing is unread.
+    val hasUnread = (state as? UiState.Content<*>)?.value
+        ?.let { (it as? NotificationsUi)?.items?.any { n -> n.unread } } == true
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -77,8 +82,10 @@ fun NotificationsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_notifications)) },
                 actions = {
-                    IconButton(onClick = viewModel::markAllRead) {
-                        Icon(Icons.Filled.DoneAll, contentDescription = stringResource(R.string.notifications_mark_all))
+                    if (hasUnread) {
+                        IconButton(onClick = viewModel::markAllRead) {
+                            Icon(Icons.Filled.DoneAll, contentDescription = stringResource(R.string.notifications_mark_all))
+                        }
                     }
                 },
             )

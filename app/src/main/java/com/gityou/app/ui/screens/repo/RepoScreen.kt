@@ -1,5 +1,7 @@
 package com.gityou.app.ui.screens.repo
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.text.method.LinkMovementMethod
@@ -16,9 +18,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -27,16 +31,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.MergeType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -51,16 +62,21 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -72,6 +88,7 @@ import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.ui.components.CircleActionButton
 import com.gityou.app.ui.components.EyebrowLabel
+import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.IssueRow
 import com.gityou.app.ui.components.LanguageDot
 import com.gityou.app.ui.components.LanguageColors
@@ -83,6 +100,7 @@ import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
 import io.noties.markwon.Markwon
+import kotlinx.coroutines.launch
 
 private val tabTitles = listOf(
     R.string.repo_tab_about,
@@ -167,12 +185,41 @@ fun RepoScreen(
 
             ui.fileContent?.let { file ->
                 ModalBottomSheet(onDismissRequest = viewModel::dismissFile) {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    val scope = rememberCoroutineScope()
                     Column(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .padding(horizontal = Spacing.lg)
-                            .padding(bottom = Spacing.xl),
+                            .navigationBarsPadding()
+                            .padding(bottom = Spacing.md),
                     ) {
-                        Text(file.name, style = MaterialTheme.typography.titleMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                file.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = {
+                                clipboard?.setPrimaryClip(ClipData.newPlainText(file.name, file.text))
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.copied_to_clipboard))
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Filled.ContentCopy,
+                                    contentDescription = stringResource(R.string.action_copy),
+                                )
+                            }
+                            IconButton(onClick = viewModel::dismissFile) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.action_close),
+                                )
+                            }
+                        }
                         Spacer(Modifier.height(Spacing.md))
                         SelectionContainer {
                             Text(
@@ -184,6 +231,7 @@ fun RepoScreen(
                                     .verticalScroll(rememberScrollState()),
                             )
                         }
+                        Spacer(Modifier.height(Spacing.md))
                     }
                 }
             }
@@ -304,11 +352,26 @@ private fun AboutTab(
                 }
             }
             is com.gityou.app.ui.components.UiState.Error -> {
-                Text(
-                    errorMessageFor(readme.errorKey),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = Spacing.lg),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            errorMessageFor(readme.errorKey),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = viewModel::loadReadme) {
+                            Text(stringResource(R.string.action_retry))
+                        }
+                    }
+                }
             }
             is com.gityou.app.ui.components.UiState.Content -> MarkdownText(readme.value)
         }
@@ -352,7 +415,9 @@ private fun CodeTab(
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
+            BranchSelector(ui = ui, viewModel = viewModel)
             TextButton(onClick = { viewModel.loadContents("") }) {
                 Text(stringResource(R.string.repo_code_root))
             }
@@ -440,7 +505,7 @@ private fun CodeTab(
                                 Text(item.name, style = MaterialTheme.typography.titleSmall)
                                 if (item.type == "file" && item.size > 0) {
                                     Text(
-                                        "${item.size} B",
+                                        Formatters.bytes(item.size),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -449,6 +514,55 @@ private fun CodeTab(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Branch
+
+/** Dropdown to switch the branch the code browser reads. */
+@Composable
+private fun BranchSelector(
+    ui: RepoDetailUi,
+    viewModel: RepoViewModel,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        FilledTonalButton(onClick = { expanded = true }) {
+            Icon(
+                Icons.Filled.CallSplit,
+                contentDescription = stringResource(R.string.repo_branch_select),
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(Spacing.xs))
+            Text(
+                ui.activeBranch,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 160.dp),
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val options = ui.branches.ifEmpty { listOf(ui.activeBranch) }
+            options.forEach { branch ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            branch,
+                            fontWeight = if (branch == ui.activeBranch) {
+                                FontWeight.SemiBold
+                            } else {
+                                FontWeight.Normal
+                            },
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        viewModel.selectBranch(branch)
+                    },
+                )
             }
         }
     }
@@ -470,6 +584,7 @@ private fun IssuesTab(
         hasMore = ui.issues.nextPage != null,
         onLoadMore = viewModel::loadIssuesMore,
         rowContent = { issue -> IssueRow(issue = issue, onClick = { onOpenIssue(issue.number, false) }) },
+        emptyIcon = Icons.Outlined.BugReport,
         emptyTitle = stringResource(R.string.repo_issues_empty_title),
         emptyBody = stringResource(R.string.repo_issues_empty_body),
     )
@@ -489,6 +604,7 @@ private fun PullsTab(
         hasMore = ui.pulls.nextPage != null,
         onLoadMore = viewModel::loadPullsMore,
         rowContent = { pull -> PullRow(pull = pull, onClick = { onOpenIssue(pull.number, true) }) },
+        emptyIcon = Icons.Outlined.MergeType,
         emptyTitle = stringResource(R.string.repo_pulls_empty_title),
         emptyBody = stringResource(R.string.repo_pulls_empty_body),
     )
@@ -503,6 +619,7 @@ private fun <T> ListWithFilter(
     hasMore: Boolean,
     onLoadMore: () -> Unit,
     rowContent: @Composable (T) -> Unit,
+    emptyIcon: androidx.compose.ui.graphics.vector.ImageVector,
     emptyTitle: String,
     emptyBody: String,
 ) {
@@ -524,17 +641,11 @@ private fun <T> ListWithFilter(
         }
 
         if (items.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(emptyTitle, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        emptyBody,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = Spacing.sm),
-                    )
-                }
-            }
+            EmptyState(
+                icon = emptyIcon,
+                title = emptyTitle,
+                body = emptyBody,
+            )
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),

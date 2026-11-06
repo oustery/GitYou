@@ -17,6 +17,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -63,6 +64,9 @@ object NetworkModule {
         Retrofit.Builder()
             .baseUrl("https://api.github.com/")
             .client(client)
+            // Scalars must be registered first: the raw README endpoint returns
+            // plain text, which the JSON converter alone cannot deserialize.
+            .addConverterFactory(ScalarsConverterFactory.create())
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
 
