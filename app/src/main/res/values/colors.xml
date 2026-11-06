@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive launcher icon palette (light theme). -->
+    <color name="ic_launcher_background">#DEE0FF</color>
+    <color name="ic_launcher_stroke">#2E339B</color>
+    <color name="ic_launcher_node">#2E339B</color>
+    <color name="ic_launcher_accent">#D64525</color>
+
+    <!-- Launch window background to avoid a white flash before Compose draws. -->
+    <color name="launch_background">#FBF8FE</color>
+</resources>

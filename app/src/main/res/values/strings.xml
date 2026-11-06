@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GitYou</string>
+
+    <!-- Generic actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_back">Back</string>
+
+    <!-- Errors -->
+    <string name="error_unauthorized">Session expired or token is invalid. Sign in again.</string>
+    <string name="error_rate_limit">GitHub API rate limit reached. Try again a bit later.</string>
+    <string name="error_forbidden">GitHub refused the request. Check token permissions.</string>
+    <string name="error_not_found">Not found. It may be private or deleted.</string>
+    <string name="error_validation">The request was rejected. Check the entered data.</string>
+    <string name="error_network">No connection to GitHub. Check the network.</string>
+    <string name="error_http">GitHub returned an error. Try again later.</string>
+    <string name="error_unknown">Something went wrong. Try again.</string>
+    <string name="error_generic_action">The action failed. Try again.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_notifications">Alerts</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">Your GitHub, native and expressive</string>
+    <string name="auth_device_flow_title">Sign in with GitHub</string>
+    <string name="auth_device_flow_body">Confirm the code on github.com to link your account.</string>
+    <string name="auth_client_id_label">OAuth App Client ID</string>
+    <string name="auth_client_id_hint">Register an OAuth App with Device Flow enabled</string>
+    <string name="auth_device_flow_button">Continue with Device Flow</string>
+    <string name="auth_enter_code_at">Open %1$s and enter this code:</string>
+    <string name="auth_waiting_confirmation">Waiting for confirmation…</string>
+    <string name="auth_open_verification">Open github.com</string>
+    <string name="auth_code_expired">The code expired. Request a new one.</string>
+    <string name="auth_code_denied">Sign-in was denied. Try again if it was not you.</string>
+    <string name="auth_try_again">Try again</string>
+    <string name="auth_missing_client_id">Add the OAuth App Client ID to use Device Flow.</string>
+    <string name="auth_pat_title">Personal access token</string>
+    <string name="auth_pat_body">Fast alternative: paste a token with repo, read:user and notifications scopes.</string>
+    <string name="auth_pat_label">github_pat_… or ghp_…</string>
+    <string name="auth_show_token">Show token</string>
+    <string name="auth_hide_token">Hide token</string>
+    <string name="auth_pat_button">Sign in</string>
+    <string name="auth_pat_scopes_hint">Classic tokens need the repo, read:user and notifications scopes.</string>
+
+    <!-- Star button -->
+    <string name="star_action_add">Star repository</string>
+    <string name="star_action_remove">Unstar repository</string>
+    <string name="star_state_starred">Starred</string>
+    <string name="star_state_not_starred">Not starred</string>
+
+    <!-- Home -->
+    <string name="home_repos_section">My repositories</string>
+    <string name="home_empty_title">No repositories yet</string>
+    <string name="home_empty_body">Create your first repository on GitHub and it will appear here.</string>
+
+    <!-- Search -->
+    <string name="search_title">Search</string>
+    <string name="search_field_label">Search repositories</string>
+    <string name="search_empty_title">Search GitHub</string>
+    <string name="search_empty_body">Type a repository name, language or topic.</string>
+    <string name="search_no_results_title">Nothing found</string>
+    <string name="search_no_results_body">No repositories match “%1$s”.</string>
+
+    <!-- Cards -->
+    <string name="issue_row_meta">#%1$d · %2$s · %3$s</string>
+    <string name="pull_draft_prefix">[draft] %1$s</string>
+
+    <!-- Notifications -->
+    <string name="notifications_mark_all">Mark all as read</string>
+    <string name="notifications_marked_all">All notifications marked as read</string>
+    <string name="notifications_mark_read">Mark as read</string>
+    <string name="notifications_empty_title">Inbox zero</string>
+    <string name="notifications_empty_body">New notifications will show up here.</string>
+
+    <!-- Profile -->
+    <string name="profile_followers">Followers</string>
+    <string name="profile_following">Following</string>
+    <string name="profile_repos">Repos</string>
+    <string name="profile_tab_repositories">Repositories</string>
+    <string name="profile_tab_stars">Stars</string>
+    <string name="profile_empty_repos_title">No repositories</string>
+    <string name="profile_empty_repos_body">Public and private repositories will appear here.</string>
+    <string name="profile_empty_stars_title">No stars yet</string>
+    <string name="profile_empty_stars_body">Starred repositories will appear here.</string>
+
+    <!-- Repository -->
+    <string name="repo_tab_about">About</string>
+    <string name="repo_tab_code">Code</string>
+    <string name="repo_tab_issues">Issues</string>
+    <string name="repo_tab_pulls">PRs</string>
+    <string name="repo_stat_stars">Stars</string>
+    <string name="repo_stat_forks">Forks</string>
+    <string name="repo_stat_issues">Issues</string>
+    <string name="repo_language_unknown">Not specified</string>
+    <string name="repo_license_label">License: %1$s</string>
+    <string name="repo_updated_label">Updated %1$s</string>
+    <string name="repo_readme_section">README</string>
+    <string name="repo_code_root">Root</string>
+    <string name="repo_code_empty">This folder is empty</string>
+    <string name="repo_issues_empty_title">No issues</string>
+    <string name="repo_issues_empty_body">Issues with the selected status will appear here.</string>
+    <string name="repo_pulls_empty_title">No pull requests</string>
+    <string name="repo_pulls_empty_body">Pull requests with the selected status will appear here.</string>
+    <string name="repo_fork_action">Fork repository</string>
+    <string name="repo_fork_created">Fork created — check your repositories</string>
+    <string name="repo_open_in_browser">Open in browser</string>
+    <string name="filter_open">Open</string>
+    <string name="filter_closed">Closed</string>
+
+    <!-- Issues & pull requests -->
+    <string name="issue_new_title">New issue</string>
+    <string name="issue_detail_issue_title">Issue #%1$d</string>
+    <string name="issue_detail_pull_title">Pull request #%1$d</string>
+    <string name="issue_state_open">Open</string>
+    <string name="issue_state_closed">Closed</string>
+    <string name="issue_state_merged">Merged</string>
+    <string name="issue_state_draft">Draft</string>
+    <string name="issue_author_line">%1$s · %2$s</string>
+    <string name="issue_branches_line">%1$s ← %2$s</string>
+    <string name="issue_comments_section">Comments (%1$d)</string>
+    <string name="issue_no_comments">No comments yet.</string>
+    <string name="issue_comment_hint">Write a comment…</string>
+    <string name="issue_send_comment">Send comment</string>
+    <string name="issue_new_repo_line">New issue in %1$s/%2$s</string>
+    <string name="issue_new_field_title">Title</string>
+    <string name="issue_new_field_body">Description</string>
+    <string name="issue_new_markdown_hint">Markdown is supported</string>
+    <string name="issue_new_submit">Create issue</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_theme_label">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color_label">Dynamic color</string>
+    <string name="settings_dynamic_color_body">Follow the wallpaper palette (Android 12+)</string>
+    <string name="settings_account_section">Account</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_about_section">About</string>
+    <string name="settings_version_label">Version %1$s</string>
+    <string name="settings_repo_link">Project on GitHub</string>
+    <string name="settings_design_note">Built with Material 3 Expressive, Kotlin and Jetpack Compose</string>
+</resources>

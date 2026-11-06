@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive launcher icon palette (dark theme). -->
+    <color name="ic_launcher_background">#1C1D33</color>
+    <color name="ic_launcher_stroke">#BDC3FF</color>
+    <color name="ic_launcher_node">#BDC3FF</color>
+    <color name="ic_launcher_accent">#FF8A76</color>
+
+    <color name="launch_background">#131318</color>
+</resources>

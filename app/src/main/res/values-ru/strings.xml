@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GitYou</string>
+
+    <!-- Generic actions -->
+    <string name="action_save">Сохранить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_retry">Повторить</string>
+    <string name="action_clear">Очистить</string>
+    <string name="action_refresh">Обновить</string>
+    <string name="action_back">Назад</string>
+
+    <!-- Errors -->
+    <string name="error_unauthorized">Сессия истекла или токен недействителен. Войдите заново.</string>
+    <string name="error_rate_limit">Достигнут лимит запросов к GitHub API. Повторите чуть позже.</string>
+    <string name="error_forbidden">GitHub отклонил запрос. Проверьте права токена.</string>
+    <string name="error_not_found">Не найдено. Возможно, это приватное или удалённое.</string>
+    <string name="error_validation">Запрос отклонён. Проверьте введённые данные.</string>
+    <string name="error_network">Нет связи с GitHub. Проверьте сеть.</string>
+    <string name="error_http">GitHub вернул ошибку. Попробуйте позже.</string>
+    <string name="error_unknown">Что-то пошло не так. Попробуйте снова.</string>
+    <string name="error_generic_action">Действие не выполнено. Попробуйте ещё раз.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Главная</string>
+    <string name="nav_search">Поиск</string>
+    <string name="nav_notifications">Уведомления</string>
+    <string name="nav_profile">Профиль</string>
+
+    <!-- Auth -->
+    <string name="auth_tagline">Ваш GitHub — нативный и выразительный</string>
+    <string name="auth_device_flow_title">Войти через GitHub</string>
+    <string name="auth_device_flow_body">Подтвердите код на github.com, чтобы привязать аккаунт.</string>
+    <string name="auth_client_id_label">Client ID OAuth-приложения</string>
+    <string name="auth_client_id_hint">Зарегистрируйте OAuth App с включённым Device Flow</string>
+    <string name="auth_device_flow_button">Продолжить через Device Flow</string>
+    <string name="auth_enter_code_at">Откройте %1$s и введите код:</string>
+    <string name="auth_waiting_confirmation">Ожидаем подтверждение…</string>
+    <string name="auth_open_verification">Открыть github.com</string>
+    <string name="auth_code_expired">Код истёк. Запросите новый.</string>
+    <string name="auth_code_denied">Вход отклонён. Если это были не вы — проверьте аккаунт.</string>
+    <string name="auth_try_again">Попробовать снова</string>
+    <string name="auth_missing_client_id">Добавьте Client ID OAuth-приложения для входа через Device Flow.</string>
+    <string name="auth_pat_title">Персональный токен доступа</string>
+    <string name="auth_pat_body">Быстрая альтернатива: вставьте токен со скоупами repo, read:user и notifications.</string>
+    <string name="auth_pat_label">github_pat_… или ghp_…</string>
+    <string name="auth_show_token">Показать токен</string>
+    <string name="auth_hide_token">Скрыть токен</string>
+    <string name="auth_pat_button">Войти</string>
+    <string name="auth_pat_scopes_hint">Классическим токенам нужны скоупы repo, read:user и notifications.</string>
+
+    <!-- Star button -->
+    <string name="star_action_add">Поставить звезду репозиторию</string>
+    <string name="star_action_remove">Убрать звезду</string>
+    <string name="star_state_starred">С звездой</string>
+    <string name="star_state_not_starred">Без звезды</string>
+
+    <!-- Home -->
+    <string name="home_repos_section">Мои репозитории</string>
+    <string name="home_empty_title">Пока нет репозиториев</string>
+    <string name="home_empty_body">Создайте первый репозиторий на GitHub — он появится здесь.</string>
+
+    <!-- Search -->
+    <string name="search_title">Поиск</string>
+    <string name="search_field_label">Поиск репозиториев</string>
+    <string name="search_empty_title">Поиск по GitHub</string>
+    <string name="search_empty_body">Введите имя репозитория, язык или тему.</string>
+    <string name="search_no_results_title">Ничего не найдено</string>
+    <string name="search_no_results_body">Нет репозиториев по запросу «%1$s».</string>
+
+    <!-- Cards -->
+    <string name="issue_row_meta">#%1$d · %2$s · %3$s</string>
+    <string name="pull_draft_prefix">[черновик] %1$s</string>
+
+    <!-- Notifications -->
+    <string name="notifications_mark_all">Отметить все прочитанными</string>
+    <string name="notifications_marked_all">Все уведомления отмечены прочитанными</string>
+    <string name="notifications_mark_read">Отметить прочитанным</string>
+    <string name="notifications_empty_title">Ноль уведомлений</string>
+    <string name="notifications_empty_body">Новые уведомления появятся здесь.</string>
+
+    <!-- Profile -->
+    <string name="profile_followers">Подписчики</string>
+    <string name="profile_following">Подписки</string>
+    <string name="profile_repos">Репо</string>
+    <string name="profile_tab_repositories">Репозитории</string>
+    <string name="profile_tab_stars">Звёзды</string>
+    <string name="profile_empty_repos_title">Нет репозиториев</string>
+    <string name="profile_empty_repos_body">Публичные и приватные репозитории появятся здесь.</string>
+    <string name="profile_empty_stars_title">Звёзд пока нет</string>
+    <string name="profile_empty_stars_body">Репозитории со звёздами появятся здесь.</string>
+
+    <!-- Repository -->
+    <string name="repo_tab_about">О репо</string>
+    <string name="repo_tab_code">Код</string>
+    <string name="repo_tab_issues">Issues</string>
+    <string name="repo_tab_pulls">PR</string>
+    <string name="repo_stat_stars">Звёзды</string>
+    <string name="repo_stat_forks">Форки</string>
+    <string name="repo_stat_issues">Issues</string>
+    <string name="repo_language_unknown">Не указан</string>
+    <string name="repo_license_label">Лицензия: %1$s</string>
+    <string name="repo_updated_label">Обновлено %1$s</string>
+    <string name="repo_readme_section">README</string>
+    <string name="repo_code_root">Корень</string>
+    <string name="repo_code_empty">Папка пуста</string>
+    <string name="repo_issues_empty_title">Нет issues</string>
+    <string name="repo_issues_empty_body">Issues с выбранным статусом появятся здесь.</string>
+    <string name="repo_pulls_empty_title">Нет pull request’ов</string>
+    <string name="repo_pulls_empty_body">Pull request’ы с выбранным статусом появятся здесь.</string>
+    <string name="repo_fork_action">Сделать форк репозитория</string>
+    <string name="repo_fork_created">Форк создан — смотрите в своих репозиториях</string>
+    <string name="repo_open_in_browser">Открыть в браузере</string>
+    <string name="filter_open">Открытые</string>
+    <string name="filter_closed">Закрытые</string>
+
+    <!-- Issues & pull requests -->
+    <string name="issue_new_title">Новый issue</string>
+    <string name="issue_detail_issue_title">Issue #%1$d</string>
+    <string name="issue_detail_pull_title">Pull request #%1$d</string>
+    <string name="issue_state_open">Открыт</string>
+    <string name="issue_state_closed">Закрыт</string>
+    <string name="issue_state_merged">Слит</string>
+    <string name="issue_state_draft">Черновик</string>
+    <string name="issue_author_line">%1$s · %2$s</string>
+    <string name="issue_branches_line">%1$s ← %2$s</string>
+    <string name="issue_comments_section">Комментарии (%1$d)</string>
+    <string name="issue_no_comments">Комментариев пока нет.</string>
+    <string name="issue_comment_hint">Написать комментарий…</string>
+    <string name="issue_send_comment">Отправить комментарий</string>
+    <string name="issue_new_repo_line">Новый issue в %1$s/%2$s</string>
+    <string name="issue_new_field_title">Заголовок</string>
+    <string name="issue_new_field_body">Описание</string>
+    <string name="issue_new_markdown_hint">Поддерживается Markdown</string>
+    <string name="issue_new_submit">Создать issue</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_appearance_section">Оформление</string>
+    <string name="settings_theme_label">Тема</string>
+    <string name="settings_theme_system">Системная</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_dynamic_color_label">Динамический цвет</string>
+    <string name="settings_dynamic_color_body">Подстраиваться под палитру обоев (Android 12+)</string>
+    <string name="settings_account_section">Аккаунт</string>
+    <string name="settings_sign_out">Выйти из аккаунта</string>
+    <string name="settings_about_section">О приложении</string>
+    <string name="settings_version_label">Версия %1$s</string>
+    <string name="settings_repo_link">Проект на GitHub</string>
+    <string name="settings_design_note">Сделано на Material 3 Expressive, Kotlin и Jetpack Compose</string>
+</resources>

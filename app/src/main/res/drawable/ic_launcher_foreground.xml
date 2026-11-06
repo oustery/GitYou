@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Y-shaped branch strokes -->
+    <path
+        android:pathData="M54,80 L54,52"
+        android:strokeColor="@color/ic_launcher_stroke"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,52 L36,28"
+        android:strokeColor="@color/ic_launcher_stroke"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,52 L72,28"
+        android:strokeColor="@color/ic_launcher_stroke"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+
+    <!-- Merge node at the fork point -->
+    <path
+        android:fillColor="@color/ic_launcher_node"
+        android:pathData="M46.5,52 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0 Z" />
+
+    <!-- Starting commit -->
+    <path
+        android:fillColor="@color/ic_launcher_node"
+        android:pathData="M47.5,80 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 Z" />
+
+    <!-- Left branch commit -->
+    <path
+        android:fillColor="@color/ic_launcher_node"
+        android:pathData="M29.5,28 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 Z" />
+
+    <!-- Right branch commit, accented with the brand coral -->
+    <path
+        android:fillColor="@color/ic_launcher_accent"
+        android:pathData="M65.5,28 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 Z" />
+</vector>
