@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.ModeComment
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.util.Formatters
+import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.theme.Spacing
 
 private val CardShape = RoundedCornerShape(20.dp)
@@ -199,7 +201,12 @@ fun IssueRow(
         icon = if (isOpen) Icons.Filled.BugReport else Icons.Filled.CheckCircleOutline,
         iconTint = if (isOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
         title = issue.title,
-        meta = stringResource(R.string.issue_row_meta, issue.number, Formatters.date(issue.createdAt) ?: "", issue.user?.login ?: ""),
+        meta = stringResource(
+            R.string.issue_row_meta,
+            issue.number,
+            relativeTimeString(Formatters.relativeOrAbsolute(issue.createdAt)),
+            issue.user?.login ?: "",
+        ),
         trailing = issue.commentCount.takeIf { it > 0 }?.let { count ->
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -224,12 +231,35 @@ fun PullRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isOpen = pull.state == "open"
+    // GitHub semantics: open = brand green, merged = tertiary, closed = quiet.
+    val (icon, iconTint) = when {
+        pull.merged -> Icons.Filled.MergeType to MaterialTheme.colorScheme.tertiary
+        pull.state == "open" -> Icons.Filled.CallSplit to MaterialTheme.colorScheme.primary
+        else -> Icons.Filled.CallSplit to MaterialTheme.colorScheme.outline
+    }
     IssuePullRow(
-        icon = Icons.Filled.CallSplit,
-        iconTint = if (isOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        icon = icon,
+        iconTint = iconTint,
         title = if (pull.draft) stringResource(R.string.pull_draft_prefix, pull.title) else pull.title,
-        meta = stringResource(R.string.issue_row_meta, pull.number, Formatters.date(pull.createdAt) ?: "", pull.user?.login ?: ""),
+        meta = stringResource(
+            R.string.issue_row_meta,
+            pull.number,
+            relativeTimeString(Formatters.relativeOrAbsolute(pull.createdAt)),
+            pull.user?.login ?: "",
+        ),
+        trailing = pull.commentCount.takeIf { it > 0 }?.let { count ->
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.ModeComment,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(" $count", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
         onClick = onClick,
         modifier = modifier,
     )

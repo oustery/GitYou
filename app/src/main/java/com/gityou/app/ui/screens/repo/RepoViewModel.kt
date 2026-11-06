@@ -34,6 +34,8 @@ data class PullListUi(
 
 data class FileContentUi(
     val name: String,
+    val path: String = "",
+    val size: Long = 0,
     val text: String,
 )
 
@@ -164,7 +166,7 @@ class RepoViewModel @Inject constructor(
             try {
                 val ref = (_state.value as? UiState.Content)?.value?.activeBranch
                 val text = reposRepository.fileContent(owner, repoName, item.path, ref)
-                patch { it.copy(fileContent = FileContentUi(name = item.name, text = text)) }
+                patch { it.copy(fileContent = FileContentUi(name = item.name, path = item.path, size = item.size, text = text)) }
             } catch (t: Throwable) {
                 _actionMessage.value = R.string.error_generic_action
             }

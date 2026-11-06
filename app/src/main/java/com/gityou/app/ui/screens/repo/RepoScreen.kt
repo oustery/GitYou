@@ -4,6 +4,15 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -34,13 +43,15 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.MergeType
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -70,11 +81,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -94,6 +107,7 @@ import com.gityou.app.ui.components.MorphingStarButton
 import com.gityou.app.ui.components.PullRow
 import com.gityou.app.ui.components.StatBlock
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.components.appHaptics
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -105,7 +119,10 @@ private val tabTitles = listOf(
     R.string.repo_tab_pulls,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Full-file rendering in one TextView is slow; cap the preview politely. */
+private const val FILE_PREVIEW_MAX_LINES = 2000
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RepoScreen(
     owner: String,
@@ -120,6 +137,7 @@ fun RepoScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val haptics = appHaptics()
 
     LaunchedEffect(actionMessage) {
         actionMessage?.let {
@@ -154,9 +172,13 @@ fun RepoScreen(
             val selectedTab = (state as? com.gityou.app.ui.components.UiState.Content<*>)?.value
                 ?.let { (it as? RepoDetailUi)?.selectedTab }
             if (selectedTab == 2) {
-                FloatingActionButton(onClick = onNewIssue) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.issue_new_title))
-                }
+                // A labeled action: the text removes the guesswork about what
+                // the round button does.
+                ExtendedFloatingActionButton(
+                    onClick = onNewIssue,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.fab_new_issue)) },
+                )
             }
         },
     ) { padding ->
@@ -171,11 +193,28 @@ fun RepoScreen(
                         )
                     }
                 }
-                when (ui.selectedTab) {
-                    0 -> AboutTab(ui, viewModel, owner, repoName)
-                    1 -> CodeTab(ui, viewModel)
-                    2 -> IssuesTab(ui, viewModel, onOpenIssue)
-                    else -> PullsTab(ui, viewModel, onOpenIssue)
+                // Spatial tab transition: content slides towards its side of
+                // the screen with a quiet spring; reading order stays stable.
+                val tabSpring = spring<IntOffset>(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+                AnimatedContent(
+                    targetState = ui.selectedTab,
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        val dir = if (forward) 1 else -1
+                        (fadeIn(tween(220)) + slideInHorizontally(tabSpring) { dir * it / 12 }) togetherWith
+                            (fadeOut(tween(140)) + slideOutHorizontally(tabSpring) { -dir * it / 12 })
+                    },
+                    label = "repoTabContent",
+                ) { tab ->
+                    when (tab) {
+                        0 -> AboutTab(ui, viewModel, owner, repoName)
+                        1 -> CodeTab(ui, viewModel)
+                        2 -> IssuesTab(ui, viewModel, onOpenIssue)
+                        else -> PullsTab(ui, viewModel, onOpenIssue)
+                    }
                 }
             }
 
@@ -191,15 +230,24 @@ fun RepoScreen(
                             .padding(bottom = Spacing.md),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                file.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    file.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (file.size > 0) {
+                                    Text(
+                                        Formatters.bytes(file.size),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             IconButton(onClick = {
                                 clipboard?.setPrimaryClip(ClipData.newPlainText(file.name, file.text))
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 scope.launch {
                                     snackbarHostState.showSnackbar(context.getString(R.string.copied_to_clipboard))
                                 }
@@ -207,6 +255,34 @@ fun RepoScreen(
                                 Icon(
                                     Icons.Filled.ContentCopy,
                                     contentDescription = stringResource(R.string.action_copy),
+                                )
+                            }
+                            IconButton(onClick = {
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TITLE, file.name)
+                                    putExtra(Intent.EXTRA_TEXT, file.text)
+                                }
+                                context.startActivity(Intent.createChooser(send, null))
+                            }) {
+                                Icon(
+                                    Icons.Filled.Share,
+                                    contentDescription = stringResource(R.string.file_share),
+                                )
+                            }
+                            IconButton(onClick = {
+                                val safeBranch = Uri.encode(ui.activeBranch)
+                                val safePath = file.path.split('/').joinToString("/") { Uri.encode(it) }
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://github.com/$owner/$repoName/blob/$safeBranch/$safePath"),
+                                    ),
+                                )
+                            }) {
+                                Icon(
+                                    Icons.Filled.OpenInNew,
+                                    contentDescription = stringResource(R.string.file_open_in_browser),
                                 )
                             }
                             IconButton(onClick = viewModel::dismissFile) {
@@ -217,9 +293,24 @@ fun RepoScreen(
                             }
                         }
                         Spacer(Modifier.height(Spacing.md))
+                        val truncatedNote = stringResource(R.string.file_truncated, FILE_PREVIEW_MAX_LINES)
+                        val preview = remember(file.text, truncatedNote) {
+                            val lines = file.text.split('\n')
+                            val capped = lines.take(FILE_PREVIEW_MAX_LINES)
+                            buildString {
+                                capped.forEachIndexed { index, line ->
+                                    append(String.format("%4d │ ", index + 1))
+                                    append(line)
+                                    append('\n')
+                                }
+                                if (lines.size > FILE_PREVIEW_MAX_LINES) {
+                                    append(truncatedNote)
+                                }
+                            }
+                        }
                         SelectionContainer {
                             Text(
-                                file.text,
+                                preview,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier
@@ -246,6 +337,7 @@ private fun AboutTab(
     repoName: String,
 ) {
     val context = LocalContext.current
+    val haptics = appHaptics()
 
     Column(
         modifier = Modifier
@@ -267,7 +359,10 @@ private fun AboutTab(
             CircleActionButton(
                 icon = Icons.Filled.CallSplit,
                 contentDescription = stringResource(R.string.repo_fork_action),
-                onClick = viewModel::fork,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.fork()
+                },
             )
             CircleActionButton(
                 icon = Icons.Filled.OpenInNew,
@@ -307,27 +402,19 @@ private fun AboutTab(
 
         Spacer(Modifier.height(Spacing.lg))
 
+        // Meta facts on one quiet line: language, license, last push.
+        val metaFragments = buildList {
+            add(ui.repo.language ?: stringResource(R.string.repo_language_unknown))
+            ui.repo.license?.spdxId?.takeIf { it.isNotBlank() && it != "NOASSERTION" }?.let {
+                add(stringResource(R.string.repo_license_label, it))
+            }
+            Formatters.date(ui.repo.pushedAt)?.let { add(stringResource(R.string.repo_updated_label, it)) }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             LanguageDot(LanguageColors.colorFor(ui.repo.language))
             Spacer(Modifier.width(6.dp))
             Text(
-                ui.repo.language ?: stringResource(R.string.repo_language_unknown),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        ui.repo.license?.spdxId?.takeIf { it.isNotBlank() && it != "NOASSERTION" }?.let { license ->
-            Spacer(Modifier.height(Spacing.sm))
-            Text(
-                stringResource(R.string.repo_license_label, license),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Formatters.date(ui.repo.pushedAt)?.let {
-            Spacer(Modifier.height(Spacing.sm))
-            Text(
-                stringResource(R.string.repo_updated_label, it),
+                metaFragments.joinToString(separator = "  ·  "),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -456,7 +543,7 @@ private fun CodeTab(
                     ) {
                         Row(
                             modifier = Modifier
-                                .padding(Spacing.lg)
+                                .padding(horizontal = Spacing.md, vertical = Spacing.md)
                                 .fillMaxWidth()
                                 .clickable {
                                     if (item.type == "dir") {
@@ -475,9 +562,9 @@ private fun CodeTab(
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 },
-                                modifier = Modifier.size(22.dp),
+                                modifier = Modifier.size(20.dp),
                             )
-                            Spacer(Modifier.width(Spacing.lg))
+                            Spacer(Modifier.width(Spacing.md))
                             Column {
                                 Text(item.name, style = MaterialTheme.typography.titleSmall)
                                 if (item.type == "file" && item.size > 0) {

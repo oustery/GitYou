@@ -1,5 +1,7 @@
 package com.gityou.app.ui.screens.notifications
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,9 +21,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Commit
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MarkEmailRead
+import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
@@ -48,6 +57,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,10 +66,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.Notification
+import com.gityou.app.data.util.Formatters
+import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.UiState
+import com.gityou.app.ui.components.appHaptics
+import com.gityou.app.ui.components.relativeTimeString
 import com.gityou.app.ui.theme.Spacing
 
 private enum class NotificationsFilter { ALL, UNREAD }
@@ -73,6 +88,7 @@ fun NotificationsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val markReadOnOpen by viewModel.markReadOnOpen.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(NotificationsFilter.ALL) }
 
     val items = (state as? UiState.Content<*>)?.value
@@ -86,6 +102,7 @@ fun NotificationsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val haptics = appHaptics()
 
     LaunchedEffect(message) {
         message?.let {
@@ -100,7 +117,10 @@ fun NotificationsScreen(
                 title = { Text(stringResource(R.string.nav_notifications)) },
                 actions = {
                     if (unreadCount > 0) {
-                        IconButton(onClick = viewModel::markAllRead) {
+                        IconButton(onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.markAllRead()
+                        }) {
                             Icon(Icons.Filled.DoneAll, contentDescription = stringResource(R.string.notifications_mark_all))
                         }
                     }
@@ -168,7 +188,7 @@ fun NotificationsScreen(
                                     SwipeableNotificationRow(
                                         notification = notification,
                                         onClick = {
-                                            if (notification.unread) viewModel.markRead(notification)
+                                            if (notification.unread && markReadOnOpen) viewModel.markRead(notification)
                                             viewModel.targetFor(notification)?.let { target ->
                                                 onOpenIssue(target.owner, target.repo, target.number, target.isPull)
                                             } ?: notification.repository?.fullName?.let { fullName ->
@@ -250,13 +270,20 @@ private fun NotificationRow(
     onClick: () -> Unit,
     onMarkRead: (() -> Unit)? = null,
 ) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (notification.unread) {
+    // Read/unread reads through three channels: card tone, the accent dot
+    // and the type icon, so color is never the only signal.
+    val container by animateColorAsState(
+        targetValue = if (notification.unread) {
             MaterialTheme.colorScheme.surfaceContainerHighest
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
+        animationSpec = tween(200),
+        label = "notificationContainer",
+    )
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = container,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
@@ -278,13 +305,26 @@ private fun NotificationRow(
             }
             Spacer(Modifier.width(Spacing.sm))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    notification.repository?.fullName ?: "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        notification.repository?.fullName ?: "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    relativeTimeString(
+                        Formatters.relativeOrAbsolute(notification.updatedAt),
+                    ).takeIf { it.isNotBlank() }?.let {
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 Text(
                     notification.subject?.title ?: "",
                     style = MaterialTheme.typography.titleSmall,
@@ -297,12 +337,23 @@ private fun NotificationRow(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
-                        Text(
-                            type,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        Row(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                subjectIcon(type),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(11.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                subjectTypeLabel(type),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
                     }
                 }
             }
@@ -316,4 +367,27 @@ private fun NotificationRow(
             }
         }
     }
+}
+
+/** Localized label for the raw GitHub subject type. */
+@Composable
+private fun subjectTypeLabel(type: String): String = when (type) {
+    "PullRequest" -> stringResource(R.string.notification_type_pull_request)
+    "Issue" -> stringResource(R.string.notification_type_issue)
+    "CheckSuite", "CheckRun", "WorkflowRun" -> stringResource(R.string.notification_type_check)
+    "Release" -> stringResource(R.string.notification_type_release)
+    "Discussion" -> stringResource(R.string.notification_type_discussion)
+    "Commit" -> stringResource(R.string.notification_type_commit)
+    else -> stringResource(R.string.notification_type_event)
+}
+
+/** Distinct icon per subject type instead of one generic envelope. */
+private fun subjectIcon(type: String): ImageVector = when (type) {
+    "PullRequest" -> Icons.Filled.MergeType
+    "Issue" -> Icons.Filled.BugReport
+    "CheckSuite", "CheckRun", "WorkflowRun" -> Icons.Filled.CheckCircleOutline
+    "Release" -> Icons.Filled.NewReleases
+    "Discussion" -> Icons.Filled.Forum
+    "Commit" -> Icons.Filled.Commit
+    else -> Icons.Filled.Circle
 }

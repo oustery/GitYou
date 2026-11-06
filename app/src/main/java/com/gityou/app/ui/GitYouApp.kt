@@ -39,7 +39,9 @@ import androidx.navigation.compose.rememberNavController
 import com.gityou.app.R
 import com.gityou.app.ui.components.GyBottomBar
 import com.gityou.app.ui.components.GyNavigationRail
+import com.gityou.app.ui.components.LocalHapticsEnabled
 import com.gityou.app.ui.components.LocalMarkdownFactory
+import com.gityou.app.ui.components.LocalRenderMarkdown
 import com.gityou.app.ui.navigation.GitYouNavHost
 import com.gityou.app.ui.navigation.Route
 import com.gityou.app.ui.navigation.navigateTopLevel
@@ -87,6 +89,8 @@ fun GitYouApp(
     ) {
         CompositionLocalProvider(
             LocalMarkdownFactory provides appViewModel.markdownFactory,
+            LocalHapticsEnabled provides settings.hapticsEnabled,
+            LocalRenderMarkdown provides settings.renderMarkdown,
             LocalDensity provides scaledDensity,
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

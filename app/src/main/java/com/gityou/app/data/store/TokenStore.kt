@@ -34,6 +34,8 @@ class TokenStore @Inject constructor(
         val defaultTab: String = "home",
         val appLanguage: String = "system",
         val renderMarkdown: Boolean = true,
+        val hapticsEnabled: Boolean = true,
+        val markReadOnOpen: Boolean = true,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -55,6 +57,8 @@ class TokenStore @Inject constructor(
         val DEFAULT_TAB = stringPreferencesKey("default_tab")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
         val RENDER_MARKDOWN = booleanPreferencesKey("render_markdown")
+        val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
+        val MARK_READ_ON_OPEN = booleanPreferencesKey("mark_read_on_open")
     }
 
     @Volatile
@@ -85,6 +89,8 @@ class TokenStore @Inject constructor(
                 defaultTab = prefs[Keys.DEFAULT_TAB] ?: "home",
                 appLanguage = prefs[Keys.APP_LANGUAGE] ?: "system",
                 renderMarkdown = prefs[Keys.RENDER_MARKDOWN] ?: true,
+                hapticsEnabled = prefs[Keys.HAPTICS_ENABLED] ?: true,
+                markReadOnOpen = prefs[Keys.MARK_READ_ON_OPEN] ?: true,
             )
         }
 
@@ -142,5 +148,13 @@ class TokenStore @Inject constructor(
 
     suspend fun saveRenderMarkdown(enabled: Boolean) {
         dataStore.edit { it[Keys.RENDER_MARKDOWN] = enabled }
+    }
+
+    suspend fun saveHapticsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.HAPTICS_ENABLED] = enabled }
+    }
+
+    suspend fun saveMarkReadOnOpen(enabled: Boolean) {
+        dataStore.edit { it[Keys.MARK_READ_ON_OPEN] = enabled }
     }
 }

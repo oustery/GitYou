@@ -1,5 +1,6 @@
 package com.gityou.app.data.util
 
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -51,5 +52,44 @@ object Formatters {
     private fun monthShort(month: Int): String = when (month) {
         1 -> "Jan"; 2 -> "Feb"; 3 -> "Mar"; 4 -> "Apr"; 5 -> "May"; 6 -> "Jun"
         7 -> "Jul"; 8 -> "Aug"; 9 -> "Sep"; 10 -> "Oct"; 11 -> "Nov"; else -> "Dec"
+    }
+}
+
+/**
+ * Coarse relative-time bucket for list rows. The number stays a plain value
+ * here so unit tests run without Android; the UI layer maps buckets onto
+ * localized plurals.
+ */
+sealed interface RelativeTime {
+    data object Now : RelativeTime
+    data class Minutes(val value: Int) : RelativeTime
+    data class Hours(val value: Int) : RelativeTime
+    data class Days(val value: Int) : RelativeTime
+    data class Absolute(val text: String) : RelativeTime
+}
+
+/** Parses an API timestamp, null when missing or malformed. */
+fun parseTimestamp(iso: String?): OffsetDateTime? {
+    if (iso.isNullOrBlank()) return null
+    return try {
+        OffsetDateTime.parse(iso)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+/**
+ * "2 ч назад"-style bucket for a timestamp. Within a week relative wins,
+ * beyond it the absolute medium date reads better; clock skew clamps to now.
+ */
+fun Formatters.relativeOrAbsolute(iso: String?, now: OffsetDateTime = OffsetDateTime.now()): RelativeTime {
+    val date = parseTimestamp(iso) ?: return RelativeTime.Absolute(Formatters.date(iso) ?: "")
+    val seconds = Duration.between(date, now).seconds
+    return when {
+        seconds < 60 -> RelativeTime.Now
+        seconds < 3_600 -> RelativeTime.Minutes((seconds / 60).toInt())
+        seconds < 86_400 -> RelativeTime.Hours((seconds / 3_600).toInt())
+        seconds < 7 * 86_400 -> RelativeTime.Days((seconds / 86_400).toInt())
+        else -> RelativeTime.Absolute(Formatters.date(iso) ?: "")
     }
 }

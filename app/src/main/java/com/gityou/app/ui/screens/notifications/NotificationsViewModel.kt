@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.repo.NotificationsRepository
+import com.gityou.app.data.store.TokenStore
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class NotificationsUi(
@@ -33,7 +37,13 @@ data class NotificationTarget(
 @HiltViewModel
 class NotificationsViewModel @Inject constructor(
     private val notificationsRepository: NotificationsRepository,
+    tokenStore: TokenStore,
 ) : ViewModel() {
+
+    /** User preference: opening a notification marks it as read. */
+    val markReadOnOpen: StateFlow<Boolean> = tokenStore.settingsFlow
+        .map { it.markReadOnOpen }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     private val _state = MutableStateFlow<UiState<NotificationsUi>>(UiState.Loading)
     val state: StateFlow<UiState<NotificationsUi>> = _state.asStateFlow()

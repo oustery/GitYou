@@ -7,6 +7,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.sp
 import com.gityou.app.R
 
@@ -47,6 +48,45 @@ val RobotoFlex = FontFamily(
         resId = R.font.roboto_flex,
         weight = FontWeight.ExtraBold,
         variationSettings = FontVariation.Settings(FontVariation.weight(800)),
+    ),
+    // Italic instances come from the variable font's slnt axis, so emphasis
+    // inside markdown is a true slant of the same typeface rather than a
+    // synthetic skew of the upright cut.
+    Font(
+        resId = R.font.roboto_flex,
+        weight = FontWeight.Normal,
+        style = FontStyle.Italic,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(400),
+            FontVariation.slant(-10f),
+        ),
+    ),
+    Font(
+        resId = R.font.roboto_flex,
+        weight = FontWeight.Medium,
+        style = FontStyle.Italic,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(500),
+            FontVariation.slant(-10f),
+        ),
+    ),
+    Font(
+        resId = R.font.roboto_flex,
+        weight = FontWeight.SemiBold,
+        style = FontStyle.Italic,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(600),
+            FontVariation.slant(-10f),
+        ),
+    ),
+    Font(
+        resId = R.font.roboto_flex,
+        weight = FontWeight.Bold,
+        style = FontStyle.Italic,
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(700),
+            FontVariation.slant(-10f),
+        ),
     ),
 )
 

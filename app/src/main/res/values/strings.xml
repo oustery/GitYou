@@ -197,4 +197,47 @@
     <string name="issue_new_tab_write">Write</string>
     <string name="issue_new_tab_preview">Preview</string>
     <string name="issue_new_preview_empty">Nothing to preview yet.</string>
+    <!-- Relative time -->
+    <string name="time_now">Just now</string>
+    <plurals name="time_minutes_ago">
+        <item quantity="one">%d minute ago</item>
+        <item quantity="other">%d minutes ago</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="one">%d hour ago</item>
+        <item quantity="other">%d hours ago</item>
+    </plurals>
+    <plurals name="time_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <!-- Notification subject types -->
+    <string name="notification_type_pull_request">Pull request</string>
+    <string name="notification_type_issue">Issue</string>
+    <string name="notification_type_check">Check</string>
+    <string name="notification_type_release">Release</string>
+    <string name="notification_type_discussion">Discussion</string>
+    <string name="notification_type_commit">Commit</string>
+    <string name="notification_type_event">Event</string>
+
+    <!-- More settings -->
+    <string name="settings_haptics_label">Tactile feedback</string>
+    <string name="settings_haptics_body">Vibration on key actions</string>
+    <string name="settings_mark_read_on_open_label">Mark read when opened</string>
+    <string name="settings_mark_read_on_open_body">Opening a notification marks it as read</string>
+    <string name="settings_data_section">Data</string>
+    <string name="settings_cache_label">Image cache</string>
+    <string name="settings_cache_size_line">%1$s stored</string>
+    <string name="settings_cache_clear">Clear</string>
+    <string name="settings_cache_cleared">Cache cleared</string>
+    <string name="settings_releases">Releases</string>
+
+    <!-- File preview -->
+    <string name="file_share">Share</string>
+    <string name="file_open_in_browser">Open in browser</string>
+    <string name="file_truncated">Preview limited to the first %1$d lines</string>
+
+    <!-- FAB -->
+    <string name="fab_new_issue">New issue</string>
 </resources>

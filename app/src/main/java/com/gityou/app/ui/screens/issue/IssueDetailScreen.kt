@@ -50,10 +50,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.gityou.app.R
 import com.gityou.app.data.util.Formatters
+import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.errorMessageFor
+import com.gityou.app.ui.components.relativeTimeString
 import com.gityou.app.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -153,8 +155,8 @@ private fun IssueHeader(detail: IssueDetailUi) {
         Spacer(Modifier.height(Spacing.sm))
         Text(
             detail.title,
-            style = MaterialTheme.typography.headlineSmall,
-            maxLines = 3,
+            style = MaterialTheme.typography.titleLarge,
+            maxLines = 4,
             overflow = TextOverflow.Ellipsis,
         )
 
@@ -172,7 +174,7 @@ private fun IssueHeader(detail: IssueDetailUi) {
                 stringResource(
                     R.string.issue_author_line,
                     detail.authorLogin,
-                    Formatters.date(detail.createdAt) ?: "",
+                    relativeTimeString(Formatters.relativeOrAbsolute(detail.createdAt)),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -280,7 +282,7 @@ private fun CommentsSection(
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
-                                Formatters.date(comment.createdAt) ?: "",
+                                relativeTimeString(Formatters.relativeOrAbsolute(comment.createdAt)),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

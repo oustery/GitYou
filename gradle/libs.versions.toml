@@ -60,6 +60,8 @@ markwon-ext-tasklist = { group = "io.noties.markwon", name = "ext-tasklist", ver
 markwon-ext-strikethrough = { group = "io.noties.markwon", name = "ext-strikethrough", version.ref = "markwon" }
 markwon-linkify = { group = "io.noties.markwon", name = "linkify", version.ref = "markwon" }
 markwon-image = { group = "io.noties.markwon", name = "image", version.ref = "markwon" }
+markwon-image-svg = { group = "com.caverock", name = "androidsvg", version = "1.4" }
+markwon-image-gif = { group = "pl.droidsonroids.gif", name = "android-gif-drawable", version = "1.2.28" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

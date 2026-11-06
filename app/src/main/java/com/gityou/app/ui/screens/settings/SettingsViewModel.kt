@@ -75,6 +75,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { tokenStore.saveRenderMarkdown(enabled) }
     }
 
+    fun setHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveHapticsEnabled(enabled) }
+    }
+
+    fun setMarkReadOnOpen(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveMarkReadOnOpen(enabled) }
+    }
+
     fun signOut() {
         viewModelScope.launch { authRepository.signOut() }
     }

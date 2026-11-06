@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -68,13 +70,17 @@ fun MorphingStarButton(
 
     val actionLabel = stringResource(if (isStarred) R.string.star_action_remove else R.string.star_action_add)
     val stateLabel = stringResource(if (isStarred) R.string.star_state_starred else R.string.star_state_not_starred)
+    val haptics = appHaptics()
 
     Box(
         modifier = modifier
-            .size(84.dp)
+            .size(60.dp)
             .clip(RoundedCornerShape(corner))
             .background(container)
-            .clickable(enabled = !isLoading, onClick = onToggle)
+            .clickable(enabled = !isLoading) {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onToggle()
+            }
             .semantics {
                 role = Role.Button
                 contentDescription = actionLabel
@@ -84,7 +90,7 @@ fun MorphingStarButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(20.dp),
                 color = contentColor,
             )
         } else {
@@ -92,13 +98,13 @@ fun MorphingStarButton(
                 if (isStarred) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(26.dp),
             )
         }
     }
 }
 
-/** Small circular container for secondary repo actions (fork, open in browser). */
+/** Small rounded container for secondary repo actions (fork, open in browser). */
 @Composable
 fun CircleActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -110,14 +116,14 @@ fun CircleActionButton(
 ) {
     Box(
         modifier = modifier
-            .size(84.dp)
+            .size(60.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(containerColor)
             .clickable(onClick = onClick)
             .semantics { role = Role.Button; this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(28.dp))
+        Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(24.dp))
     }
 }
 

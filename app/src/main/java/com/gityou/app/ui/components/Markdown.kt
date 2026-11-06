@@ -1,9 +1,11 @@
 package com.gityou.app.ui.components
 
 import android.content.Context
+import android.graphics.drawable.ColorDrawable
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -22,7 +24,9 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tasklist.TaskListPlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.ImagesPlugin
+import io.noties.markwon.image.gif.GifMediaDecoder
 import io.noties.markwon.image.network.OkHttpNetworkSchemeHandler
+import io.noties.markwon.image.svg.SvgMediaDecoder
 import io.noties.markwon.linkify.LinkifyPlugin
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,20 +38,34 @@ import okhttp3.OkHttpClient
  * One instance per color scheme is enough: schemes change rarely, and the
  * builder is cheap. The factory is provided through Hilt so markdown images
  * reuse the app's OkHttp client (connection pool, timeouts, logging off).
+ *
+ * Image pipeline: `ImagesPlugin` + `SvgPlugin` (shields.io/dependabot badges
+ * are SVG) + `GifPlugin` (animated README demos). While an image is being
+ * fetched a quiet surface-colored placeholder occupies its slot, so a slow
+ * network never collapses the text layout.
  */
 @Singleton
 class MarkdownFactory @Inject constructor(
     private val imageClient: OkHttpClient,
 ) {
-    fun create(context: Context, colors: androidx.compose.material3.ColorScheme): Markwon {
+    fun create(context: Context, colors: ColorScheme): Markwon {
         val density = context.resources.displayMetrics.density
         val cellPaddingPx = (8 * density).toInt()
 
         return Markwon.builder(context)
-            .usePlugin(HtmlPlugin.create())
             .usePlugin(ImagesPlugin.create { plugin ->
                 plugin.addSchemeHandler(OkHttpNetworkSchemeHandler.create(imageClient))
+                // SVG badges (shields.io, dependabot) and animated GIFs are
+                // everywhere in GitHub content; the decoders ship inside the
+                // markwon-image artifact, backed by androidsvg and
+                // android-gif-drawable on the classpath.
+                plugin.addMediaDecoder(SvgMediaDecoder.create())
+                plugin.addMediaDecoder(GifMediaDecoder.create())
+                plugin.placeholderProvider {
+                    ColorDrawable(colors.surfaceContainerHigh.toArgb())
+                }
             })
+            .usePlugin(HtmlPlugin.create())
             .usePlugin(TablePlugin.create { builder ->
                 builder
                     .tableBorderColor(colors.outlineVariant.toArgb())
@@ -68,6 +86,15 @@ class MarkdownFactory @Inject constructor(
                 override fun configureTheme(builder: MarkwonTheme.Builder) {
                     builder
                         .linkColor(colors.primary.toArgb())
+                        // Full GitHub heading scale (2.0x) is enormous on a
+                        // phone screen; a capped ladder keeps hierarchy
+                        // without the README title shouting over the text.
+                        .headingTextSizeMultipliers(
+                            floatArrayOf(1.35f, 1.22f, 1.12f, 1.05f, 1.0f, 0.95f),
+                        )
+                        .headingBreakColor(colors.outlineVariant.toArgb())
+                        .blockQuoteColor(colors.primary.toArgb())
+                        .blockQuoteWidth((4 * density).toInt())
                         .codeBlockTextColor(colors.onSurface.toArgb())
                         .codeBlockBackgroundColor(colors.surfaceContainerHigh.toArgb())
                         .codeTextColor(colors.onSurface.toArgb())
@@ -83,6 +110,9 @@ val LocalMarkdownFactory = staticCompositionLocalOf<MarkdownFactory> {
     error("MarkdownFactory is not provided")
 }
 
+/** Whether markdown should render formatted; provided from the user setting. */
+val LocalRenderMarkdown = staticCompositionLocalOf { true }
+
 /**
  * Theme-aware markdown renderer for issue bodies, comments and READMEs.
  * HTML leaks (`<details>`, `<summary>`) are normalized by
@@ -94,6 +124,15 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
+    // The "Render Markdown" setting falls back to plain text everywhere.
+    if (!LocalRenderMarkdown.current) {
+        androidx.compose.material3.Text(
+            markdown,
+            style = textStyle,
+            modifier = modifier.fillMaxWidth(),
+        )
+        return
+    }
     val factory = LocalMarkdownFactory.current
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme

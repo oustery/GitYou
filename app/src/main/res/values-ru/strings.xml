@@ -197,4 +197,50 @@
     <string name="issue_new_tab_write">Редактор</string>
     <string name="issue_new_tab_preview">Предпросмотр</string>
     <string name="issue_new_preview_empty">Пока нечего предпросматривать.</string>
+    <!-- Относительное время -->
+    <string name="time_now">Только что</string>
+    <plurals name="time_minutes_ago">
+        <item quantity="one">%d минуту назад</item>
+        <item quantity="few">%d минуты назад</item>
+        <item quantity="many">%d минут назад</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="one">%d час назад</item>
+        <item quantity="few">%d часа назад</item>
+        <item quantity="many">%d часов назад</item>
+    </plurals>
+    <plurals name="time_days_ago">
+        <item quantity="one">%d день назад</item>
+        <item quantity="few">%d дня назад</item>
+        <item quantity="many">%d дней назад</item>
+    </plurals>
+
+    <!-- Типы уведомлений -->
+    <string name="notification_type_pull_request">Пул-реквест</string>
+    <string name="notification_type_issue">Задача</string>
+    <string name="notification_type_check">Проверка</string>
+    <string name="notification_type_release">Релиз</string>
+    <string name="notification_type_discussion">Обсуждение</string>
+    <string name="notification_type_commit">Коммит</string>
+    <string name="notification_type_event">Событие</string>
+
+    <!-- Дополнительные настройки -->
+    <string name="settings_haptics_label">Тактильная отдача</string>
+    <string name="settings_haptics_body">Вибрация на ключевые действия</string>
+    <string name="settings_mark_read_on_open_label">Отмечать прочитанным при открытии</string>
+    <string name="settings_mark_read_on_open_body">Открытое уведомление считается прочитанным</string>
+    <string name="settings_data_section">Данные</string>
+    <string name="settings_cache_label">Кэш изображений</string>
+    <string name="settings_cache_size_line">Занято %1$s</string>
+    <string name="settings_cache_clear">Очистить</string>
+    <string name="settings_cache_cleared">Кэш очищен</string>
+    <string name="settings_releases">Релизы</string>
+
+    <!-- Просмотр файла -->
+    <string name="file_share">Поделиться</string>
+    <string name="file_open_in_browser">Открыть в браузере</string>
+    <string name="file_truncated">Превью ограничено первыми %1$d строками</string>
+
+    <!-- FAB -->
+    <string name="fab_new_issue">Новая задача</string>
 </resources>

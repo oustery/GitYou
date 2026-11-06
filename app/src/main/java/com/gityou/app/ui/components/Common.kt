@@ -15,9 +15,13 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,6 +47,24 @@ fun errorMessageFor(errorKey: String): String = when (errorKey) {
     ApiErrors.KEY_NETWORK -> stringResource(R.string.error_network)
     ApiErrors.KEY_HTTP -> stringResource(R.string.error_http)
     else -> stringResource(R.string.error_unknown)
+}
+
+/** Whether tactile feedback is on; the user setting is provided at the app root. */
+val LocalHapticsEnabled = staticCompositionLocalOf { true }
+
+private val NoHaptics = object : HapticFeedback {
+    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
+}
+
+/**
+ * Haptic feedback that respects the user setting: returns the platform
+ * feedback object or a silent stub, so call sites stay unconditional.
+ */
+@Composable
+fun appHaptics(): HapticFeedback {
+    val enabled = LocalHapticsEnabled.current
+    val platform = LocalHapticFeedback.current
+    return if (enabled) platform else NoHaptics
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

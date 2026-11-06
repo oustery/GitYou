@@ -3,6 +3,7 @@ package com.gityou.app
 import com.gityou.app.data.util.MarkdownPreprocessor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MarkdownPreprocessorTest {
@@ -82,5 +83,48 @@ class MarkdownPreprocessorTest {
     fun `text without angle brackets stays intact`() {
         val input = "Just plain **markdown** with no html"
         assertEquals(input, MarkdownPreprocessor.prepare(input))
+    }
+
+    @Test
+    fun `real dependabot pr body keeps badge and command list`() {
+        // Shape of the actual PR #9 body on oustery/GitYou: intro paragraph,
+        // an image-only link (SVG badge), markdown comments, hr, then a
+        // <details> block with a <br /> and the command bullet list.
+        val input = """
+            Bumps androidx.compose:compose-bom from 2025.06.01 to 2026.09.00.
+
+
+            [![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=compose-bom&package-manager=gradle)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)
+
+            Dependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.
+
+            [//]: # (dependabot-automerge-start)
+            [//]: # (dependabot-automerge-end)
+
+            ---
+
+            <details>
+            <summary>Dependabot commands and options</summary>
+            <br />
+
+            You can trigger Dependabot actions by commenting on this PR:
+            - `@dependabot rebase` will rebase this PR
+            - `@dependabot recreate` will recreate this PR
+
+
+            </details>
+        """.trimIndent()
+        val output = MarkdownPreprocessor.prepare(input)
+        // The badge image must survive so the renderer can show it.
+        assert(output.contains("![Dependabot compatibility score]")) { output }
+        // Details/summary unwrapped, content kept.
+        listOf("<details>", "</details>", "<summary>", "</summary>").forEach { tag ->
+            assertFalse("leaked tag: $tag", output.contains(tag))
+        }
+        assert(output.contains("**Dependabot commands and options**")) { output }
+        // The bullet list of commands survives.
+        assert(output.contains("- `@dependabot rebase` will rebase this PR")) { output }
+        // No triple blank runs left behind.
+        assertFalse("no triple blank runs", output.contains("\n\n\n"))
     }
 }
