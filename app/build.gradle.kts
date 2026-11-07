@@ -111,7 +111,12 @@ kotlin {
 tasks.withType<Test>().configureEach {
     // mockk's inline instrumentation agent plus coroutine-based ViewModel
     // tests need more than the 512m default heap.
-    maxHeapSize = "1g"
+    maxHeapSize = "2g"
+    // The inline agent's transformed-class cache grows with every test class
+    // executed in the same JVM (OOM by the second class at 1g, and a blown
+    // heap also breaks the agent so later final-class mocks NPE). A fresh
+    // JVM per test class keeps memory bounded and the agent state clean.
+    forkEvery = 1
 }
 
 dependencies {
