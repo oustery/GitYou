@@ -155,6 +155,8 @@
     <string name="settings_dynamic_color_body">Follow the wallpaper palette (Android 12+)</string>
     <string name="settings_account_section">Account</string>
     <string name="settings_sign_out">Sign out</string>
+    <string name="sign_out_confirm_title">Sign out of GitHub?</string>
+    <string name="sign_out_confirm_text">You will need to sign in again to use GitYou on this device.</string>
     <string name="settings_about_section">About</string>
     <string name="settings_version_label">Version %1$s</string>
     <string name="settings_repo_link">Project on GitHub</string>

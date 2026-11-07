@@ -10,7 +10,17 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
+/** Persisted in DataStore by key; resolved through [fromKey] like TextScale. */
+enum class ThemeMode(val key: String) {
+    SYSTEM("system"),
+    LIGHT("light"),
+    DARK("dark");
+
+    companion object {
+        fun fromKey(raw: String?): ThemeMode =
+            entries.firstOrNull { it.key == raw } ?: SYSTEM
+    }
+}
 
 /** User-selectable app-wide text scale applied through LocalDensity. */
 enum class TextScale(val key: String, val factor: Float) {

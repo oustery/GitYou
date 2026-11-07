@@ -155,6 +155,8 @@
     <string name="settings_dynamic_color_body">Подстраиваться под палитру обоев (Android 12+)</string>
     <string name="settings_account_section">Аккаунт</string>
     <string name="settings_sign_out">Выйти из аккаунта</string>
+    <string name="sign_out_confirm_title">Выйти из GitHub?</string>
+    <string name="sign_out_confirm_text">Чтобы продолжить пользоваться GitYou на этом устройстве, потребуется войти заново.</string>
     <string name="settings_about_section">О приложении</string>
     <string name="settings_version_label">Версия %1$s</string>
     <string name="settings_repo_link">Проект на GitHub</string>

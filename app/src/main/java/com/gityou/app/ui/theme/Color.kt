@@ -1,9 +1,12 @@
 package com.gityou.app.ui.theme
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 /*
  * GitYou color system.
@@ -248,3 +251,16 @@ fun accentPreviewColor(palette: AccentPalette): Color = tokensFor(palette).prima
 // Accent used for state dots, unread markers and celebratory moments.
 val UnreadAccentLight = Color(0xFFB54630)
 val UnreadAccentDark = Color(0xFFFFB4A5)
+
+/**
+ * Unread-marker accent resolved against the active scheme. Gating on the
+ * scheme itself (not on isSystemInDarkTheme) keeps the marker consistent
+ * when the user overrides light/dark or AMOLED inside the app.
+ */
+@Composable
+fun unreadAccent(): Color =
+    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        UnreadAccentDark
+    } else {
+        UnreadAccentLight
+    }

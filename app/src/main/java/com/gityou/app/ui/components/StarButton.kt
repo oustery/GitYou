@@ -1,9 +1,13 @@
 package com.gityou.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -13,7 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -29,6 +34,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gityou.app.R
 
@@ -37,7 +43,11 @@ import com.gityou.app.R
  * following the expressive "prominent state change" pattern: the shape
  * relaxes into a near-circle when starred, the container warms to coral.
  * Color is never the only signal: icon and state description change too.
+ *
+ * The spring spec comes from the active [androidx.compose.material3.MotionScheme],
+ * so the "calm motion" setting relaxes this morph along with everything else.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MorphingStarButton(
     isStarred: Boolean,
@@ -47,10 +57,8 @@ fun MorphingStarButton(
 ) {
     val corner by animateDpAsState(
         targetValue = if (isStarred) 48.dp else 20.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow,
-        ),
+        // Legitimate dynamic case: an animated corner radius (shape morph).
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec<Dp>(),
         label = "starCorner",
     )
     val container by animateColorAsState(
@@ -59,6 +67,7 @@ fun MorphingStarButton(
         } else {
             MaterialTheme.colorScheme.primaryContainer
         },
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>(),
         label = "starContainer",
     )
     val contentColor: Color = if (isStarred) {
@@ -88,24 +97,34 @@ fun MorphingStarButton(
         contentAlignment = Alignment.Center,
     ) {
         if (isLoading) {
-            CircularProgressIndicator(
+            CircularWavyProgressIndicator(
                 modifier = Modifier.size(20.dp),
                 color = contentColor,
             )
         } else {
-            Icon(
-                if (isStarred) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(26.dp),
-            )
+            // The icon crossfades with the container spring instead of
+            // snapping while its box is still moving (E-015).
+            AnimatedContent(
+                targetState = isStarred,
+                label = "starIcon",
+                transitionSpec = {
+                    (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut())
+                },
+            ) { starred ->
+                Icon(
+                    if (starred) Icons.Filled.Star else Icons.Outlined.Star,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
         }
     }
 }
 
 /** Small rounded container for secondary repo actions (fork, open in browser). */
 @Composable
-fun CircleActionButton(
+fun RoundedActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
@@ -116,7 +135,7 @@ fun CircleActionButton(
     Box(
         modifier = modifier
             .size(60.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(containerColor)
             .clickable(onClick = onClick)
             .semantics { role = Role.Button; this.contentDescription = contentDescription },

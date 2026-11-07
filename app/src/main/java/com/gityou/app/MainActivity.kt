@@ -7,8 +7,6 @@ import android.os.LocaleList
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -31,15 +29,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var markdownFactory: MarkdownFactory
 
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         observeLanguageSetting()
         setContent {
-            val windowSizeClass = calculateWindowSizeClass(this)
             GitYouApp(
-                windowSizeClass = windowSizeClass.widthSizeClass,
                 markdownFactory = markdownFactory,
             )
         }

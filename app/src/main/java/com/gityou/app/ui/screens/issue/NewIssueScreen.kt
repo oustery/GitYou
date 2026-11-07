@@ -12,8 +12,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +42,7 @@ import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NewIssueScreen(
     owner: String,
@@ -167,9 +168,8 @@ fun NewIssueScreen(
                     .padding(top = Spacing.xl),
             ) {
                 if (state.phase == NewIssuePhase.Submitting) {
-                    CircularProgressIndicator(
+                    CircularWavyProgressIndicator(
                         modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
                     )
                 } else {
                     Text(stringResource(R.string.issue_new_submit))

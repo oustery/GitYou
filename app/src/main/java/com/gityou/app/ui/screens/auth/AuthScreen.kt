@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.OpenInNew
@@ -27,11 +26,13 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,8 +75,10 @@ fun AuthScreen(
             .padding(horizontal = Spacing.xl, vertical = Spacing.hero),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Hero logo in a signature Material Expressive cookie shape: the
+        // app's one deliberate MaterialShapes moment (E-007).
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialShapes.Cookie9Sided.toShape(),
             color = MaterialTheme.colorScheme.primaryContainer,
         ) {
             Box(modifier = Modifier.padding(Spacing.lg)) {
@@ -99,7 +102,7 @@ fun AuthScreen(
 
         // ---- OAuth Device Flow ----
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -148,7 +151,7 @@ fun AuthScreen(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.tertiaryContainer,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -259,7 +262,7 @@ private fun PatCard(
     var showToken by rememberSaveable { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {

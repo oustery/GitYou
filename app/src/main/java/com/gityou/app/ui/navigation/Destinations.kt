@@ -20,4 +20,10 @@ object Route {
         "issue/$owner/$name/$number?isPull=$isPull"
 
     fun newIssue(owner: String, name: String) = "newIssue/$owner/$name"
+
+    /** Valid start tabs; unknown or missing persisted keys fall back to HOME. */
+    fun defaultTabRoute(raw: String?): String = when (raw) {
+        SEARCH, NOTIFICATIONS, PROFILE -> raw
+        else -> HOME
+    }
 }

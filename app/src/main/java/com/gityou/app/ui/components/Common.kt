@@ -1,5 +1,6 @@
 package com.gityou.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,12 +13,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -80,6 +84,7 @@ fun FullScreenLoading(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ErrorState(
     message: String,
@@ -93,12 +98,22 @@ fun ErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            Icons.Filled.CloudOff,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(48.dp),
-        )
+        // Expressive shape container: states play inside the shape system
+        // instead of floating as a bare glyph (E-016).
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(MaterialShapes.Cookie12Sided.toShape())
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(40.dp),
+            )
+        }
         Text(
             message,
             style = MaterialTheme.typography.titleMedium,
@@ -113,6 +128,7 @@ fun ErrorState(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EmptyState(
     icon: ImageVector,
@@ -127,12 +143,20 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.size(56.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(MaterialShapes.Cookie12Sided.toShape())
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(40.dp),
+            )
+        }
         Text(
             title,
             style = MaterialTheme.typography.titleLarge,

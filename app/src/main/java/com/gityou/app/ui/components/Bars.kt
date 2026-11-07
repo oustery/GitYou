@@ -1,7 +1,6 @@
 package com.gityou.app.ui.components
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
@@ -14,11 +13,8 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,43 +36,23 @@ private val topNavItems = listOf(
     NavItem(Route.PROFILE, R.string.nav_profile, Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-@Composable
-fun GyBottomBar(
+/**
+ * The four top-level destinations expressed as NavigationSuiteScaffold items.
+ * The suite picks the right container (bar / rail / drawer) per window class;
+ * selected icons switch to their filled variant as before.
+ */
+fun NavigationSuiteScope.gyNavigationSuiteItems(
     currentRoute: String?,
     unreadCount: Int,
     onSelect: (String) -> Unit,
 ) {
-    NavigationBar {
-        topNavItems.forEach { item ->
-            NavigationBarItem(
-                selected = currentRoute == item.route,
-                onClick = { onSelect(item.route) },
-                icon = {
-                    NotificationIcon(item, currentRoute == item.route, unreadCount)
-                },
-                label = { Text(stringResource(item.label)) },
-            )
-        }
-    }
-}
-
-@Composable
-fun GyNavigationRail(
-    currentRoute: String?,
-    unreadCount: Int,
-    onSelect: (String) -> Unit,
-) {
-    NavigationRail {
-        Spacer(Modifier.weight(1f))
-        topNavItems.forEach { item ->
-            NavigationRailItem(
-                selected = currentRoute == item.route,
-                onClick = { onSelect(item.route) },
-                icon = { NotificationIcon(item, currentRoute == item.route, unreadCount) },
-                label = { Text(stringResource(item.label)) },
-            )
-        }
-        Spacer(Modifier.weight(1f))
+    topNavItems.forEach { navItem ->
+        item(
+            selected = currentRoute == navItem.route,
+            onClick = { onSelect(navItem.route) },
+            icon = { NotificationIcon(navItem, currentRoute == navItem.route, unreadCount) },
+            label = { Text(stringResource(navItem.label)) },
+        )
     }
 }
 

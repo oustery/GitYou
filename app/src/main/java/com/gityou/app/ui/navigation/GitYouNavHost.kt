@@ -1,8 +1,7 @@
 package com.gityou.app.ui.navigation
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -37,38 +36,37 @@ fun NavHostController.navigateTopLevel(route: String) {
 /*
  * Expressive navigation motion: quiet fade effects paired with a restrained
  * spring slide. Details arrive from the right and leave back to the right;
- * nothing bounces, reading order stays stable.
+ * nothing bounces, reading order stays stable. Specs resolve from the active
+ * MotionScheme, so the "calm motion" setting covers navigation too (E-005).
  */
-private const val ENTER_FADE_MS = 240
-private const val EXIT_FADE_MS = 160
-
-private val springSpec = spring<IntOffset>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GitYouNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     onNotificationsEntered: () -> Unit = {},
 ) {
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     NavHost(
         navController = navController,
         startDestination = Route.HOME,
         modifier = modifier,
         enterTransition = {
-            fadeIn(tween(ENTER_FADE_MS)) +
-                slideInHorizontally(springSpec) { it / 8 }
+            fadeIn(effects) +
+                slideInHorizontally(spatial) { it / 8 }
         },
         exitTransition = {
-            fadeOut(tween(EXIT_FADE_MS)) +
-                slideOutHorizontally(springSpec) { -it / 10 }
+            fadeOut(effects) +
+                slideOutHorizontally(spatial) { -it / 10 }
         },
         popEnterTransition = {
-            fadeIn(tween(ENTER_FADE_MS)) +
-                slideInHorizontally(springSpec) { -it / 8 }
+            fadeIn(effects) +
+                slideInHorizontally(spatial) { -it / 8 }
         },
         popExitTransition = {
-            fadeOut(tween(EXIT_FADE_MS)) +
-                slideOutHorizontally(springSpec) { it / 10 }
+            fadeOut(effects) +
+                slideOutHorizontally(spatial) { it / 10 }
         },
     ) {
         composable(Route.HOME) {

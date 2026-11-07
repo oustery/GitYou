@@ -5,9 +5,6 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -33,7 +30,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -54,13 +50,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -70,8 +66,9 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,6 +79,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -95,7 +93,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.util.Formatters
-import com.gityou.app.ui.components.CircleActionButton
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.IssueRow
@@ -105,6 +102,7 @@ import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.MorphingStarButton
 import com.gityou.app.ui.components.PullRow
+import com.gityou.app.ui.components.RoundedActionButton
 import com.gityou.app.ui.components.StatBlock
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.appHaptics
@@ -141,6 +139,9 @@ fun RepoScreen(
     val context = LocalContext.current
     val haptics = appHaptics()
 
+    // M3E hierarchy: a medium title (owner/repo) that collapses on scroll (E-004).
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     LaunchedEffect(actionMessage) {
         actionMessage?.let {
             snackbarHostState.showSnackbar(context.getString(it))
@@ -149,12 +150,12 @@ fun RepoScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = {
                     Text(
                         "$owner/$repoName",
-                        style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -167,6 +168,7 @@ fun RepoScreen(
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -195,18 +197,17 @@ fun RepoScreen(
                     }
                 }
                 // Spatial tab transition: content slides towards its side of
-                // the screen with a quiet spring; reading order stays stable.
-                val tabSpring = spring<IntOffset>(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                )
+                // the screen with a quiet spring from the active MotionScheme;
+                // reading order stays stable (E-005).
+                val tabSpring = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+                val tabFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = ui.selectedTab,
                     transitionSpec = {
                         val forward = targetState > initialState
                         val dir = if (forward) 1 else -1
-                        (fadeIn(tween(220)) + slideInHorizontally(tabSpring) { dir * it / 12 }) togetherWith
-                            (fadeOut(tween(140)) + slideOutHorizontally(tabSpring) { -dir * it / 12 })
+                        (fadeIn(tabFadeIn) + slideInHorizontally(tabSpring) { dir * it / 12 }) togetherWith
+                            (fadeOut(tabFadeIn) + slideOutHorizontally(tabSpring) { -dir * it / 12 })
                     },
                     label = "repoTabContent",
                 ) { tab ->
@@ -220,7 +221,13 @@ fun RepoScreen(
             }
 
             ui.fileContent?.let { file ->
-                ModalBottomSheet(onDismissRequest = viewModel::dismissFile) {
+                // Partially expanded first: the peek shows the file header;
+                // dragging up reveals the preview (E-017).
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+                ModalBottomSheet(
+                    onDismissRequest = viewModel::dismissFile,
+                    sheetState = sheetState,
+                ) {
                     val clipboard = context.getSystemService(ClipboardManager::class.java)
                     val scope = rememberCoroutineScope()
                     Column(
@@ -357,7 +364,7 @@ private fun AboutTab(
                 isLoading = ui.starBusy,
                 onToggle = viewModel::toggleStar,
             )
-            CircleActionButton(
+            RoundedActionButton(
                 icon = Icons.Filled.CallSplit,
                 contentDescription = stringResource(R.string.repo_fork_action),
                 onClick = {
@@ -365,7 +372,7 @@ private fun AboutTab(
                     viewModel.fork()
                 },
             )
-            CircleActionButton(
+            RoundedActionButton(
                 icon = Icons.Filled.OpenInNew,
                 contentDescription = stringResource(R.string.repo_open_in_browser),
                 onClick = {
@@ -536,7 +543,7 @@ private fun CodeTab(
             ) {
                 items(sorted, key = { it.path }) { item ->
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = MaterialTheme.shapes.small,
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         modifier = Modifier
                             .fillMaxWidth()

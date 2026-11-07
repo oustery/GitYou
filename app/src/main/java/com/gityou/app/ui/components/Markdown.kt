@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
+import androidx.core.content.res.ResourcesCompat
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
+import com.gityou.app.R
 import com.gityou.app.data.util.MarkdownPreprocessor
 import com.gityou.app.di.MarkdownImageClient
 import io.noties.markwon.AbstractMarkwonPlugin
@@ -184,6 +186,10 @@ fun MarkdownText(
             TextView(ctx).apply {
                 movementMethod = LinkMovementMethod.getInstance()
                 highlightColor = android.graphics.Color.TRANSPARENT
+                // The branded variable font applies to the View side too, so
+                // READMEs, issue bodies and comments share one type voice
+                // with the rest of the UI (E-003).
+                typeface = ResourcesCompat.getFont(ctx, R.font.roboto_flex)
             }
         },
         update = { textView ->

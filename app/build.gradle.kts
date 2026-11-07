@@ -132,7 +132,9 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material3.window.size)
+    // NavigationSuiteScaffold: adaptive navigation bar/rail/drawer selection.
+    // Aligned with the material3 override so both live in the same alpha wave.
+    implementation(libs.compose.material3.adaptive.navigation.suite)
     implementation(libs.compose.material.icons.extended)
     debugImplementation(libs.compose.ui.tooling)
 

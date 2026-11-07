@@ -89,6 +89,8 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showLicenses by remember { mutableStateOf(false) }
+    // Destructive action guard: sign-out requires an explicit confirmation.
+    var showSignOutConfirm by remember { mutableStateOf(false) }
     val languageSupported = Build.VERSION.SDK_INT >= VERSION_CODES.TIRAMISU
 
     // Image cache (Coil): size is shown in the Data section, cleared on demand.
@@ -98,6 +100,27 @@ fun SettingsScreen(
         cacheBytes = withContext(Dispatchers.IO) { imageLoader.diskCache?.size }
     }
     LaunchedEffect(Unit) { refreshCacheSize() }
+
+    if (showSignOutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirm = false },
+            title = { Text(stringResource(R.string.sign_out_confirm_title)) },
+            text = { Text(stringResource(R.string.sign_out_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutConfirm = false
+                    viewModel.signOut()
+                }) {
+                    Text(stringResource(R.string.settings_sign_out))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
 
     if (showLicenses) {
         AlertDialog(
@@ -402,7 +425,7 @@ fun SettingsScreen(
                 }
             }
             OutlinedButton(
-                onClick = viewModel::signOut,
+                onClick = { showSignOutConfirm = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.md),

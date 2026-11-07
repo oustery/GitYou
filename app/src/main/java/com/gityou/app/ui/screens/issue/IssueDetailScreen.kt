@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -25,7 +24,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -188,9 +187,8 @@ fun IssueDetailScreen(
                             enabled = draft.isNotBlank() && !screenState.sendingComment,
                         ) {
                             if (screenState.sendingComment) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
                                 )
                             } else {
                                 Icon(
@@ -231,7 +229,7 @@ private fun IssueHeader(detail: IssueDetailUi) {
                 detail.state == "closed" -> Icons.Filled.Check
                 else -> Icons.Filled.BugReport
             }
-            Surface(shape = RoundedCornerShape(12.dp), color = container) {
+            Surface(shape = MaterialTheme.shapes.small, color = container) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -299,7 +297,7 @@ private fun IssueHeader(detail: IssueDetailUi) {
             ) {
                 detail.labels.forEach { label ->
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
@@ -316,7 +314,7 @@ private fun IssueHeader(detail: IssueDetailUi) {
         detail.body?.takeIf { it.isNotBlank() }?.let { body ->
             Spacer(Modifier.height(Spacing.lg))
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -332,7 +330,7 @@ private fun IssueHeader(detail: IssueDetailUi) {
 @Composable
 private fun CommentCard(comment: Comment) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {

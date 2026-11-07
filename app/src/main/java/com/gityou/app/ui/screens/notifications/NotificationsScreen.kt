@@ -1,7 +1,11 @@
 package com.gityou.app.ui.screens.notifications
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckCircleOutline
@@ -34,8 +37,10 @@ import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -44,7 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -57,8 +62,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +84,7 @@ import com.gityou.app.ui.components.appHaptics
 import com.gityou.app.ui.components.errorKeyRes
 import com.gityou.app.ui.components.relativeTimeString
 import com.gityou.app.ui.theme.Spacing
+import com.gityou.app.ui.theme.unreadAccent
 
 private enum class NotificationsFilter { ALL, UNREAD }
 
@@ -105,6 +113,9 @@ fun NotificationsScreen(
     val context = LocalContext.current
     val haptics = appHaptics()
 
+    // M3E hierarchy: a large title that collapses as the list scrolls (E-004).
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     LaunchedEffect(message) {
         message?.let {
             val text = when (it) {
@@ -117,12 +128,15 @@ fun NotificationsScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text(stringResource(R.string.nav_notifications)) },
                 actions = {
                     if (unreadCount > 0) {
-                        IconButton(onClick = {
+                        // A prominent accent action for the room's main gesture;
+                        // the standard IconButton stays for quiet row actions.
+                        FilledIconButton(onClick = {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             viewModel.markAllRead()
                         }) {
@@ -130,6 +144,7 @@ fun NotificationsScreen(
                         }
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -169,7 +184,7 @@ fun NotificationsScreen(
                                             modifier = Modifier
                                                 .size(8.dp)
                                                 .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.tertiary),
+                                                .background(unreadAccent()),
                                         )
                                     }
                                 } else {
@@ -258,7 +273,7 @@ private fun SwipeableNotificationRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.CenterEnd,
             ) {
@@ -275,6 +290,7 @@ private fun SwipeableNotificationRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun NotificationRow(
     notification: Notification,
@@ -289,15 +305,15 @@ private fun NotificationRow(
         } else {
             MaterialTheme.colorScheme.surfaceContainerLow
         },
-        animationSpec = tween(200),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>(),
         label = "notificationContainer",
     )
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.medium,
         color = container,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick),
     ) {
         Row(
@@ -305,14 +321,7 @@ private fun NotificationRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.width(14.dp)) {
-                if (notification.unread) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.tertiary),
-                    )
-                }
+                UnreadDot(visible = notification.unread)
             }
             Spacer(Modifier.width(Spacing.sm))
             Column(modifier = Modifier.weight(1f)) {
@@ -345,7 +354,7 @@ private fun NotificationRow(
                 notification.subject?.type?.let { type ->
                     Spacer(Modifier.height(Spacing.xs))
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Row(
@@ -377,6 +386,27 @@ private fun NotificationRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * The unread dot scales away instead of vanishing while the card is still
+ * repainting to its read tone (E-009). Extracted so the top-level
+ * AnimatedVisibility is not shadowed by RowScope.AnimatedVisibility.
+ */
+@Composable
+private fun UnreadDot(visible: Boolean) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = scaleIn() + fadeIn(),
+        exit = scaleOut() + fadeOut(),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(unreadAccent()),
+        )
     }
 }
 

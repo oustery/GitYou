@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,13 +67,16 @@ fun SearchScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             // Filled pill-style search field: quieter than an outlined field
-            // and consistent with mobile GitHub search patterns.
+            // and consistent with mobile GitHub search patterns. The custom
+            // inline pill is a deliberate choice; merged semantics make
+            // TalkBack read it as one control with its hint label (E-019).
             Surface(
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+                    .semantics(mergeDescendants = true) {},
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = Spacing.lg),
