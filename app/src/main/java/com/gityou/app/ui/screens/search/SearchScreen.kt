@@ -146,7 +146,7 @@ fun SearchScreen(
                 }
             }
 
-            StateScreen(state = results, onRetry = { viewModel.onQueryChanged(query) }) { ui ->
+            StateScreen(state = results, onRetry = viewModel::retrySearch) { ui ->
                 if (!ui.searched) {
                     EmptyState(
                         icon = Icons.Outlined.SearchOff,
@@ -166,7 +166,11 @@ fun SearchScreen(
                             vertical = Spacing.md,
                         ),
                     ) {
-                        itemsIndexed(ui.repos, key = { _, repo -> repo.id }) { _, repo ->
+                        itemsIndexed(ui.repos, key = { index, repo ->
+                            // GitHub always sends ids here; the fallback keeps
+                            // LazyColumn safe if a DTO ever arrives with id = 0.
+                            if (repo.id != 0L) repo.id else "repo-$index-${repo.name}"
+                        }) { _, repo ->
                             val ownerLogin = repo.owner?.login
                                 ?: repo.fullName?.substringBefore('/') ?: ""
                             if (ownerLogin.isNotEmpty()) {
@@ -176,8 +180,16 @@ fun SearchScreen(
                         }
                         if (ui.hasMore) {
                             item(key = "load-more") {
-                                LaunchedEffect(ui.repos.size) { viewModel.loadMore() }
-                                LoadMoreFooter(visible = ui.loadingMore)
+                                // Auto-load only while previous page succeeded;
+                                // after a failure the footer offers a retry button.
+                                LaunchedEffect(ui.repos.size, ui.loadMoreFailed) {
+                                    if (!ui.loadMoreFailed) viewModel.loadMore()
+                                }
+                                LoadMoreFooter(
+                                    visible = ui.loadingMore,
+                                    failed = ui.loadMoreFailed,
+                                    onRetry = viewModel::loadMore,
+                                )
                             }
                         }
                     }

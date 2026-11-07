@@ -6,6 +6,8 @@ import com.gityou.app.data.remote.dto.CreateCommentRequest
 import com.gityou.app.data.remote.dto.CreateIssueRequest
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.PullRequest
+import com.gityou.app.data.util.LinkHeaderParser
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,12 +23,32 @@ class IssuesRepository @Inject constructor(
     suspend fun pullRequest(owner: String, name: String, number: Int): PullRequest =
         api.pullRequest(owner, name, number)
 
-    suspend fun comments(owner: String, name: String, number: Int): List<Comment> =
-        api.issueComments(owner, name, number)
+    /**
+     * Fetches ALL comment pages (Link-header driven, F-020), oldest first.
+     * The hard page cap only guards against a pathological/malformed Link
+     * header, never against ordinary long discussions.
+     */
+    suspend fun comments(owner: String, name: String, number: Int): List<Comment> {
+        val all = mutableListOf<Comment>()
+        var page = 1
+        while (page <= MAX_COMMENT_PAGES) {
+            val response = api.issueComments(owner, name, number, page = page)
+            if (!response.isSuccessful) throw HttpException(response)
+            all += response.body().orEmpty()
+            val next = LinkHeaderParser.nextPageNumber(response.headers()["Link"])
+            if (next == null || next <= page) break
+            page = next
+        }
+        return all
+    }
 
     suspend fun createIssue(owner: String, name: String, title: String, body: String?): Issue =
         api.createIssue(owner, name, CreateIssueRequest(title = title, body = body))
 
     suspend fun addComment(owner: String, name: String, number: Int, body: String): Comment =
         api.addComment(owner, name, number, CreateCommentRequest(body))
+
+    private companion object {
+        const val MAX_COMMENT_PAGES = 100
+    }
 }

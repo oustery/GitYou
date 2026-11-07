@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 enum class DeviceFlowPhase { IDLE, WAITING, EXPIRED, DENIED, ERROR }
 
@@ -33,6 +35,7 @@ data class PatState(val phase: PatPhase = PatPhase.IDLE, val errorKey: String = 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val timeSource: TimeSource,
 ) : ViewModel() {
 
     private val _deviceFlow = MutableStateFlow(DeviceFlowState())
@@ -79,7 +82,8 @@ class AuthViewModel @Inject constructor(
             )
             return
         }
-        viewModelScope.launch {
+        // Keep the Job: «Отмена» must be able to stop the polling loop (F-003).
+        pollJob = viewModelScope.launch {
             try {
                 val code = authRepository.beginDeviceFlow(clientId)
                 _deviceFlow.value = DeviceFlowState(
@@ -88,6 +92,8 @@ class AuthViewModel @Inject constructor(
                     verificationUri = code.verificationUri,
                 )
                 pollForToken(clientId, code)
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 _deviceFlow.value = DeviceFlowState(
                     phase = DeviceFlowPhase.ERROR,
@@ -99,11 +105,16 @@ class AuthViewModel @Inject constructor(
 
     private suspend fun pollForToken(clientId: String, code: DeviceCodeResponse) {
         var interval = code.interval.coerceAtLeast(DeviceFlow.DEFAULT_INTERVAL_SECONDS)
-        val deadline = System.currentTimeMillis() + code.expiresIn * 1000L
-        while (System.currentTimeMillis() < deadline && kotlinx.coroutines.currentCoroutineContext().isActive) {
+        // Monotonic mark instead of wall-clock millis: no hidden dependency on
+        // system time changes, testable with a fake TimeSource (F-015).
+        val started = timeSource.markNow()
+        val timeout = code.expiresIn.seconds
+        while (started.elapsedNow() < timeout && kotlinx.coroutines.currentCoroutineContext().isActive) {
             delay(interval * 1000L)
             val response = try {
-                authRepository.pollForToken(clientId, code.deviceCode, interval)
+                authRepository.pollForToken(clientId, code.deviceCode)
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 _deviceFlow.value = _deviceFlow.value.copy(
                     phase = DeviceFlowPhase.ERROR,
@@ -116,6 +127,8 @@ class AuthViewModel @Inject constructor(
                     _deviceFlow.value = DeviceFlowState(phase = DeviceFlowPhase.IDLE)
                     try {
                         authRepository.signInWithPat(decision.token)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (_: Throwable) {
                         // AppViewModel flips to SignedIn once the token persists;
                         // validation failures surface there.
@@ -147,6 +160,7 @@ class AuthViewModel @Inject constructor(
 
     fun cancelDeviceFlow() {
         pollJob?.cancel()
+        pollJob = null
         _deviceFlow.value = DeviceFlowState(phase = DeviceFlowPhase.IDLE)
     }
 
@@ -157,6 +171,8 @@ class AuthViewModel @Inject constructor(
             _patState.value = try {
                 authRepository.signInWithPat(token)
                 PatState(phase = PatPhase.IDLE)
+            } catch (e: CancellationException) {
+                throw e
             } catch (t: Throwable) {
                 PatState(phase = PatPhase.ERROR, errorKey = ApiErrors.keyOf(t))
             }

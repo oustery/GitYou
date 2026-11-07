@@ -240,6 +240,9 @@
     <string name="file_share">Поделиться</string>
     <string name="file_open_in_browser">Открыть в браузере</string>
     <string name="file_truncated">Превью ограничено первыми %1$d строками</string>
+    <string name="error_file_too_large">Файл слишком велик для предпросмотра (больше 1 МБ)</string>
+    <string name="error_file_binary">Двоичные файлы нельзя показать как текст</string>
+    <string name="error_file_unsupported">Этот файл нельзя показать как текст</string>
 
     <!-- FAB -->
     <string name="fab_new_issue">Новая задача</string>

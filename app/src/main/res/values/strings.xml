@@ -237,6 +237,9 @@
     <string name="file_share">Share</string>
     <string name="file_open_in_browser">Open in browser</string>
     <string name="file_truncated">Preview limited to the first %1$d lines</string>
+    <string name="error_file_too_large">File is too large to preview (over 1 MB)</string>
+    <string name="error_file_binary">Binary files cannot be previewed</string>
+    <string name="error_file_unsupported">This file cannot be previewed as text</string>
 
     <!-- FAB -->
     <string name="fab_new_issue">New issue</string>

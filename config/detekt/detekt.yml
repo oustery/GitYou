@@ -1,0 +1,68 @@
+# Detekt configuration for GitYou.
+# Builds on the default ruleset (buildUponDefaultConfig) and only tunes what
+# the audit's prevention plan (section 5) calls for.
+build:
+  maxIssues: 0
+
+complexity:
+  # Compose screens are naturally long — the length metric is not useful here.
+  LongMethod:
+    active: false
+  LongParameterList:
+    active: false
+  TooManyFunctions:
+    active: false
+  CyclomaticComplexMethod:
+    active: false
+
+coroutines:
+  # Flags `runBlocking`/`GlobalScope`/sleeping-in-coroutines; the audit found
+  # none of these and this keeps them out.
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: true
+    # These are the ONLY files allowed to catch Throwable/Exception: they
+    # always rethrow CancellationException first (F-007) or are the safeCall
+    # helper itself. Everywhere else the codebase must use safeCall.
+    excludes:
+      - '**/data/util/SafeCall.kt'
+      - '**/data/repo/AuthRepository.kt'
+      - '**/ui/AppViewModel.kt'
+      - '**/ui/screens/auth/AuthViewModel.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+  SwallowedException:
+    active: true
+    excludes:
+      - '**/test/**'
+
+naming:
+  FunctionNaming:
+    active: true
+    # Compose UI functions are PascalCase by design.
+    ignoreAnnotated:
+      - 'Composable'
+  MatchingDeclarationName:
+    # Compose projects intentionally group related declarations in one file
+    # (Common.kt, Color.kt, Markdown.kt, Destinations.kt).
+    active: false
+
+style:
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated:
+      - 'Preview'
+  DestructuringDeclarationWithTooManyEntries:
+    active: false

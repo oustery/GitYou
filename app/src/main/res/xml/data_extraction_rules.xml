@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data extraction rules (Android 12+).
+    The DataStore file holds the GitHub OAuth token in plain form (F-004):
+    it must never leave the device through cloud backups or device-to-device
+    migration. Everything else keeps the platform defaults.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="gityou.preferences_pb" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="gityou.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>

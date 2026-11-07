@@ -9,7 +9,9 @@ import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.repo.ReposRepository
+import com.gityou.app.data.repo.ReposRepository.FilePreviewException
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -23,6 +25,8 @@ data class IssueListUi(
     val items: List<Issue> = emptyList(),
     val nextPage: Int? = 1,
     val loadingMore: Boolean = false,
+    // Keeps pagination retryable instead of permanently wedged (F-013).
+    val loadMoreFailed: Boolean = false,
 )
 
 data class PullListUi(
@@ -30,6 +34,7 @@ data class PullListUi(
     val items: List<PullRequest> = emptyList(),
     val nextPage: Int? = 1,
     val loadingMore: Boolean = false,
+    val loadMoreFailed: Boolean = false,
 )
 
 data class FileContentUi(
@@ -84,19 +89,20 @@ class RepoViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _state.value = UiState.Loading
-            try {
-                val repo = reposRepository.repo(owner, repoName)
-                val starred = runCatching { reposRepository.isStarred(owner, repoName) }
-                    .getOrDefault(false)
-                _state.value = UiState.Content(RepoDetailUi(repo = repo, isStarred = starred))
-                loadReadme()
-                loadContents("")
-                loadIssues()
-                loadPulls()
-                loadBranches()
-            } catch (t: Throwable) {
-                _state.value = UiState.Error(ApiErrors.keyOf(t))
+            val repo = safeCall { reposRepository.repo(owner, repoName) }
+            val loaded = repo.getOrNull()
+            if (loaded == null) {
+                _state.value = UiState.Error(ApiErrors.keyOf(repo.exceptionOrNull()!!))
+                return@launch
             }
+            val starred = safeCall { reposRepository.isStarred(owner, repoName) }
+                .getOrDefault(false)
+            _state.value = UiState.Content(RepoDetailUi(repo = loaded, isStarred = starred))
+            loadReadme()
+            loadContents("")
+            loadIssues()
+            loadPulls()
+            loadBranches()
         }
     }
 
@@ -114,11 +120,10 @@ class RepoViewModel @Inject constructor(
     fun loadReadme() {
         viewModelScope.launch {
             patch { it.copy(readme = UiState.Loading) }
-            val newState = try {
-                UiState.Content(reposRepository.readme(owner, repoName))
-            } catch (t: Throwable) {
-                UiState.Error(ApiErrors.keyOf(t))
-            }
+            val newState = safeCall { reposRepository.readme(owner, repoName) }.fold(
+                onSuccess = { UiState.Content(it) },
+                onFailure = { t -> UiState.Error(ApiErrors.keyOf(t)) },
+            )
             patch { it.copy(readme = newState) }
         }
     }
@@ -127,7 +132,7 @@ class RepoViewModel @Inject constructor(
 
     private fun loadBranches() {
         viewModelScope.launch {
-            val names = runCatching { reposRepository.branches(owner, repoName) }
+            val names = safeCall { reposRepository.branches(owner, repoName) }
                 .getOrDefault(emptyList())
             patch { it.copy(branches = names) }
         }
@@ -143,12 +148,10 @@ class RepoViewModel @Inject constructor(
     fun loadContents(path: String) {
         viewModelScope.launch {
             patch { it.copy(contentsLoading = true, currentPath = path) }
-            try {
-                val ref = (_state.value as? UiState.Content)?.value?.activeBranch
-                val items = reposRepository.contents(owner, repoName, path, ref)
-                patch { it.copy(contents = items, contentsLoading = false) }
-            } catch (t: Throwable) {
-                patch { it.copy(contents = emptyList(), contentsLoading = false) }
+            val ref = (_state.value as? UiState.Content)?.value?.activeBranch
+            val result = safeCall { reposRepository.contents(owner, repoName, path, ref) }
+            patch { it.copy(contents = result.getOrDefault(emptyList()), contentsLoading = false) }
+            if (result.isFailure) {
                 _actionMessage.value = R.string.error_generic_action
             }
         }
@@ -163,13 +166,23 @@ class RepoViewModel @Inject constructor(
 
     fun openFile(item: ContentItem) {
         viewModelScope.launch {
-            try {
-                val ref = (_state.value as? UiState.Content)?.value?.activeBranch
-                val text = reposRepository.fileContent(owner, repoName, item.path, ref)
-                patch { it.copy(fileContent = FileContentUi(name = item.name, path = item.path, size = item.size, text = text)) }
-            } catch (t: Throwable) {
-                _actionMessage.value = R.string.error_generic_action
-            }
+            val ref = (_state.value as? UiState.Content)?.value?.activeBranch
+            val result = safeCall { reposRepository.fileContent(owner, repoName, item.path, ref) }
+            result.fold(
+                onSuccess = { text ->
+                    patch {
+                        it.copy(fileContent = FileContentUi(name = item.name, path = item.path, size = item.size, text = text))
+                    }
+                },
+                onFailure = { t ->
+                    _actionMessage.value = when ((t as? FilePreviewException)?.reason) {
+                        FilePreviewException.Reason.TOO_LARGE -> R.string.error_file_too_large
+                        FilePreviewException.Reason.BINARY -> R.string.error_file_binary
+                        FilePreviewException.Reason.UNSUPPORTED -> R.string.error_file_unsupported
+                        null -> R.string.error_generic_action
+                    }
+                },
+            )
         }
     }
 
@@ -178,40 +191,49 @@ class RepoViewModel @Inject constructor(
     // ---- Issues ----
 
     fun setIssueFilter(filter: String) {
-        patch { it.copy(issues = it.issues.copy(filter = filter, items = emptyList(), nextPage = 1)) }
+        patch { it.copy(issues = it.issues.copy(filter = filter, items = emptyList(), nextPage = 1, loadMoreFailed = false)) }
         loadIssues()
     }
 
     private fun loadIssues() {
         val filter = (_state.value as? UiState.Content)?.value?.issues?.filter ?: "open"
         viewModelScope.launch {
-            try {
-                val page = reposRepository.issues(owner, repoName, filter, page = 1)
-                patch { it.copy(issues = it.issues.copy(items = page.items, nextPage = page.nextPage)) }
-            } catch (t: Throwable) {
-                _actionMessage.value = R.string.error_generic_action
-            }
+            val result = safeCall { reposRepository.issues(owner, repoName, filter, page = 1) }
+            result.fold(
+                onSuccess = { page ->
+                    patch { it.copy(issues = it.issues.copy(items = page.items, nextPage = page.nextPage, loadMoreFailed = false)) }
+                },
+                onFailure = { _ -> _actionMessage.value = R.string.error_generic_action },
+            )
         }
     }
 
     fun loadIssuesMore() {
         val current = (_state.value as? UiState.Content)?.value?.issues ?: return
         if (current.loadingMore || current.nextPage == null) return
+        val nextPage = current.nextPage ?: return
+        val filter = current.filter
         viewModelScope.launch {
             patch { it.copy(issues = it.issues.copy(loadingMore = true)) }
-            try {
-                val page = reposRepository.issues(owner, repoName, current.filter, page = current.nextPage)
-                patch {
-                    it.copy(
-                        issues = it.issues.copy(
-                            items = it.issues.items + page.items,
-                            nextPage = page.nextPage,
-                            loadingMore = false,
-                        ),
-                    )
-                }
-            } catch (t: Throwable) {
-                patch { it.copy(issues = it.issues.copy(loadingMore = false)) }
+            val page = safeCall { reposRepository.issues(owner, repoName, filter, page = nextPage) }
+            // Apply only while the request we started is still current (F-006):
+            // a reload or filter switch resets `loadingMore` to false.
+            val stillOurs = (_state.value as? UiState.Content)?.value?.issues?.loadingMore == true
+            if (!stillOurs) return@launch
+            patch {
+                page.fold(
+                    onSuccess = { p ->
+                        it.copy(
+                            issues = it.issues.copy(
+                                items = it.issues.items + p.items,
+                                nextPage = p.nextPage,
+                                loadingMore = false,
+                                loadMoreFailed = false,
+                            ),
+                        )
+                    },
+                    onFailure = { _ -> it.copy(issues = it.issues.copy(loadingMore = false, loadMoreFailed = true)) },
+                )
             }
         }
     }
@@ -219,40 +241,47 @@ class RepoViewModel @Inject constructor(
     // ---- Pull requests ----
 
     fun setPullFilter(filter: String) {
-        patch { it.copy(pulls = it.pulls.copy(filter = filter, items = emptyList(), nextPage = 1)) }
+        patch { it.copy(pulls = it.pulls.copy(filter = filter, items = emptyList(), nextPage = 1, loadMoreFailed = false)) }
         loadPulls()
     }
 
     private fun loadPulls() {
         val filter = (_state.value as? UiState.Content)?.value?.pulls?.filter ?: "open"
         viewModelScope.launch {
-            try {
-                val page = reposRepository.pulls(owner, repoName, filter, page = 1)
-                patch { it.copy(pulls = it.pulls.copy(items = page.items, nextPage = page.nextPage)) }
-            } catch (t: Throwable) {
-                _actionMessage.value = R.string.error_generic_action
-            }
+            val result = safeCall { reposRepository.pulls(owner, repoName, filter, page = 1) }
+            result.fold(
+                onSuccess = { page ->
+                    patch { it.copy(pulls = it.pulls.copy(items = page.items, nextPage = page.nextPage, loadMoreFailed = false)) }
+                },
+                onFailure = { _ -> _actionMessage.value = R.string.error_generic_action },
+            )
         }
     }
 
     fun loadPullsMore() {
         val current = (_state.value as? UiState.Content)?.value?.pulls ?: return
         if (current.loadingMore || current.nextPage == null) return
+        val nextPage = current.nextPage ?: return
+        val filter = current.filter
         viewModelScope.launch {
             patch { it.copy(pulls = it.pulls.copy(loadingMore = true)) }
-            try {
-                val page = reposRepository.pulls(owner, repoName, current.filter, page = current.nextPage)
-                patch {
-                    it.copy(
-                        pulls = it.pulls.copy(
-                            items = it.pulls.items + page.items,
-                            nextPage = page.nextPage,
-                            loadingMore = false,
-                        ),
-                    )
-                }
-            } catch (t: Throwable) {
-                patch { it.copy(pulls = it.pulls.copy(loadingMore = false)) }
+            val page = safeCall { reposRepository.pulls(owner, repoName, filter, page = nextPage) }
+            val stillOurs = (_state.value as? UiState.Content)?.value?.pulls?.loadingMore == true
+            if (!stillOurs) return@launch
+            patch {
+                page.fold(
+                    onSuccess = { p ->
+                        it.copy(
+                            pulls = it.pulls.copy(
+                                items = it.pulls.items + p.items,
+                                nextPage = p.nextPage,
+                                loadingMore = false,
+                                loadMoreFailed = false,
+                            ),
+                        )
+                    },
+                    onFailure = { _ -> it.copy(pulls = it.pulls.copy(loadingMore = false, loadMoreFailed = true)) },
+                )
             }
         }
     }
@@ -264,41 +293,45 @@ class RepoViewModel @Inject constructor(
         if (current.starBusy) return
         viewModelScope.launch {
             patch { it.copy(starBusy = true) }
-            try {
+            val result = safeCall {
                 if (current.isStarred) {
                     reposRepository.unstar(owner, repoName)
-                    patch {
-                        it.copy(
-                            isStarred = false,
-                            starBusy = false,
-                            repo = it.repo.copy(stargazersCount = (it.repo.stargazersCount - 1).coerceAtLeast(0)),
-                        )
-                    }
                 } else {
                     reposRepository.star(owner, repoName)
-                    patch {
-                        it.copy(
-                            isStarred = true,
-                            starBusy = false,
-                            repo = it.repo.copy(stargazersCount = it.repo.stargazersCount + 1),
-                        )
-                    }
                 }
-            } catch (t: Throwable) {
-                patch { it.copy(starBusy = false) }
-                _actionMessage.value = R.string.error_generic_action
             }
+            result.fold(
+                onSuccess = {
+                    patch {
+                        if (!it.starBusy) {
+                            // A reload happened meanwhile; its isStarred is authoritative.
+                            it
+                        } else {
+                            val starred = !current.isStarred
+                            it.copy(
+                                isStarred = starred,
+                                starBusy = false,
+                                repo = it.repo.copy(
+                                    stargazersCount = (it.repo.stargazersCount + (if (starred) 1 else -1)).coerceAtLeast(0),
+                                ),
+                            )
+                        }
+                    }
+                },
+                onFailure = { _ ->
+                    patch { it.copy(starBusy = false) }
+                    _actionMessage.value = R.string.error_generic_action
+                },
+            )
         }
     }
 
     fun fork() {
         viewModelScope.launch {
-            try {
-                reposRepository.fork(owner, repoName)
-                _actionMessage.value = R.string.repo_fork_created
-            } catch (t: Throwable) {
-                _actionMessage.value = R.string.error_generic_action
-            }
+            safeCall { reposRepository.fork(owner, repoName) }.fold(
+                onSuccess = { _actionMessage.value = R.string.repo_fork_created },
+                onFailure = { _ -> _actionMessage.value = R.string.error_generic_action },
+            )
         }
     }
 }

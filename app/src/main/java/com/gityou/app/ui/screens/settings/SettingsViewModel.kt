@@ -6,6 +6,7 @@ import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.store.TokenStore
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -30,12 +31,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             tokenStore.settingsFlow.collect { _settings.value = it }
         }
+        retryUser()
+    }
+
+    /** Loads (or reloads) the account card; wired to the card's Retry button (F-012). */
+    fun retryUser() {
         viewModelScope.launch {
-            _user.value = try {
-                UiState.Content(authRepository.currentUser())
-            } catch (t: Throwable) {
-                UiState.Error(ApiErrors.keyOf(t))
-            }
+            _user.value = UiState.Loading
+            _user.value = safeCall { authRepository.currentUser() }.fold(
+                onSuccess = { UiState.Content(it) },
+                onFailure = { t -> UiState.Error(ApiErrors.keyOf(t)) },
+            )
         }
     }
 

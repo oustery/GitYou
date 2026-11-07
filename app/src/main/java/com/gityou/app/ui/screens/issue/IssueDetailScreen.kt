@@ -1,7 +1,10 @@
 package com.gityou.app.ui.screens.issue
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,8 +23,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -43,26 +47,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.gityou.app.R
+import com.gityou.app.data.remote.dto.Comment
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
-import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.components.relativeTimeString
 import com.gityou.app.ui.theme.Spacing
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun IssueDetailScreen(
-    owner: String,
-    repoName: String,
     number: Int,
     isPull: Boolean,
     onBack: () -> Unit,
@@ -70,6 +73,7 @@ fun IssueDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val commentError by viewModel.commentError.collectAsStateWithLifecycle()
+    val commentSent by viewModel.commentSent.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -95,25 +99,120 @@ fun IssueDetailScreen(
         },
     ) { padding ->
         StateScreen(state = state, onRetry = viewModel::load) { screenState ->
+            // The draft survives every recomposition and is wiped only after
+            // the server accepts the comment (F-008).
+            var draft by rememberSaveable { mutableStateOf("") }
+
+            LaunchedEffect(commentSent) {
+                if (commentSent) {
+                    draft = ""
+                    viewModel.consumeCommentSent()
+                }
+            }
+
             Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                IssueHeader(screenState.detail)
-                CommentsSection(
-                    screenState = screenState,
-                    commentError = commentError,
-                    onSend = viewModel::addComment,
+                // One scrollable list: the issue body and the comments share
+                // the same LazyColumn, so a long body never pushes the
+                // comments (or itself) off screen (F-009).
+                LazyColumn(
                     modifier = Modifier.weight(1f),
-                )
+                    contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                ) {
+                    item(key = "header") { IssueHeader(screenState.detail) }
+                    item(key = "comments-label") {
+                        EyebrowLabel(
+                            stringResource(R.string.issue_comments_section, screenState.detail.commentCount),
+                        )
+                    }
+                    if (screenState.commentsLoading) {
+                        item(key = "comments-loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = Spacing.xl),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                LinearWavyProgressIndicator()
+                            }
+                        }
+                    }
+                    itemsIndexed(
+                        screenState.detail.comments,
+                        key = { index, comment ->
+                            // Fallback keeps keys unique even if a comment DTO
+                            // arrives with the default id = 0 (F-014).
+                            if (comment.id != 0L) comment.id else "comment-$index"
+                        },
+                    ) { _, comment ->
+                        CommentCard(comment)
+                        Spacer(Modifier.height(Spacing.xs))
+                    }
+                    if (!screenState.commentsLoading && screenState.detail.comments.isEmpty()) {
+                        item(key = "no-comments") {
+                            Text(
+                                stringResource(R.string.issue_no_comments),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = Spacing.lg),
+                            )
+                        }
+                    }
+                }
+
+                if (commentError) {
+                    Text(
+                        stringResource(R.string.error_generic_action),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = Spacing.lg),
+                    )
+                }
+
+                Surface(tonalElevation = 2.dp) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            placeholder = { Text(stringResource(R.string.issue_comment_hint)) },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 4,
+                        )
+                        Spacer(Modifier.width(Spacing.md))
+                        Button(
+                            onClick = { viewModel.addComment(draft) },
+                            enabled = draft.isNotBlank() && !screenState.sendingComment,
+                        ) {
+                            if (screenState.sendingComment) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = stringResource(R.string.issue_send_comment),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun IssueHeader(detail: IssueDetailUi) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            .padding(vertical = Spacing.md),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             val (container, content) = when {
@@ -186,15 +285,19 @@ private fun IssueHeader(detail: IssueDetailUi) {
             Text(
                 stringResource(R.string.issue_branches_line, detail.baseRef ?: "", detail.headRef ?: ""),
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         if (detail.labels.isNotEmpty()) {
             Spacer(Modifier.height(Spacing.md))
-            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(Spacing.sm)) {
-                detail.labels.take(4).forEach { label ->
+            // FlowRow wraps instead of overflowing past the screen edge (F-022).
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                detail.labels.forEach { label ->
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -226,129 +329,37 @@ private fun IssueHeader(detail: IssueDetailUi) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CommentsSection(
-    screenState: IssueDetailScreenState,
-    commentError: Boolean,
-    onSend: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var draft by rememberSaveable { mutableStateOf("") }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        EyebrowLabel(
-            stringResource(R.string.issue_comments_section, screenState.detail.commentCount),
-            modifier = Modifier.padding(horizontal = Spacing.lg),
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
-        ) {
-            if (screenState.commentsLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = Spacing.xl),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        LinearWavyProgressIndicator()
-                    }
-                }
-            }
-            items(screenState.detail.comments, key = { it.id }) { comment ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+private fun CommentCard(comment: Comment) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = comment.user?.avatarUrl,
+                    contentDescription = null,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Spacing.xs),
-                ) {
-                    Column(modifier = Modifier.padding(Spacing.lg)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(
-                                model = comment.user?.avatarUrl,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape),
-                            )
-                            Spacer(Modifier.width(Spacing.sm))
-                            Text(
-                                comment.user?.login ?: "",
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                relativeTimeString(Formatters.relativeOrAbsolute(comment.createdAt)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        comment.body?.let {
-                            Spacer(Modifier.height(Spacing.sm))
-                            MarkdownText(markdown = it)
-                        }
-                    }
-                }
-            }
-            if (!screenState.commentsLoading && screenState.detail.comments.isEmpty()) {
-                item {
-                    Text(
-                        stringResource(R.string.issue_no_comments),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = Spacing.lg),
-                    )
-                }
-            }
-        }
-
-        if (commentError) {
-            Text(
-                stringResource(R.string.error_generic_action),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = Spacing.lg),
-            )
-        }
-
-        Surface(tonalElevation = 2.dp) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    placeholder = { Text(stringResource(R.string.issue_comment_hint)) },
-                    modifier = Modifier.weight(1f),
-                    maxLines = 4,
+                        .size(20.dp)
+                        .clip(CircleShape),
                 )
-                Spacer(Modifier.width(Spacing.md))
-                androidx.compose.material3.Button(
-                    onClick = {
-                        onSend(draft)
-                        draft = ""
-                    },
-                    enabled = draft.isNotBlank() && !screenState.sendingComment,
-                ) {
-                    if (screenState.sendingComment) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = stringResource(R.string.issue_send_comment),
-                        )
-                    }
-                }
+                Spacer(Modifier.width(Spacing.sm))
+                Text(
+                    comment.user?.login ?: "",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    relativeTimeString(Formatters.relativeOrAbsolute(comment.createdAt)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            comment.body?.let {
+                Spacer(Modifier.height(Spacing.sm))
+                MarkdownText(markdown = it)
             }
         }
     }

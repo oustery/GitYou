@@ -379,7 +379,7 @@ fun SettingsScreen(
                 stringResource(R.string.settings_account_section),
                 modifier = Modifier.padding(top = Spacing.lg),
             )
-            StateScreen(state = user, onRetry = { /* no-op: shown again on next open */ }) { u ->
+            StateScreen(state = user, onRetry = viewModel::retryUser) { u ->
                 SettingsCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(

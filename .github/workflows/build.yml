@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Superseded runs of the same branch are cancelled early (F-027).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Tests + per-ABI APKs
@@ -24,6 +29,9 @@ jobs:
 
       - name: Set up Gradle with caching
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Static analysis (detekt)
+        run: ./gradlew --no-daemon detekt
 
       - name: Prepare release signing (from repo secrets)
         env:

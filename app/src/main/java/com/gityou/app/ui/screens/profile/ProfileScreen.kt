@@ -41,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.gityou.app.R
+import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.RepoCard
 import com.gityou.app.ui.components.StatBlock
@@ -150,7 +151,11 @@ fun ProfileScreen(
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.md),
                     ) {
-                        itemsIndexed(items, key = { _, repo -> repo.id }) { _, repo ->
+                        itemsIndexed(items, key = { index, repo ->
+                            // Fallback keeps LazyColumn keys unique even if a
+                            // DTO arrives with the default id = 0 (F-014).
+                            if (repo.id != 0L) repo.id else "repo-$index-${repo.name}"
+                        }) { _, repo ->
                             val ownerLogin = repo.owner?.login
                                 ?: repo.fullName?.substringBefore('/') ?: ""
                             if (ownerLogin.isNotEmpty()) {
@@ -166,14 +171,26 @@ fun ProfileScreen(
                         }
                         if (ui.selectedTab == 0 && ui.reposNextPage != null) {
                             item(key = "repos-more") {
-                                LaunchedEffect(ui.repos.size) { viewModel.loadReposMore() }
-                                LoadMoreFooter(visible = ui.loadingRepos)
+                                LaunchedEffect(ui.repos.size, ui.reposLoadMoreFailed) {
+                                    if (!ui.reposLoadMoreFailed) viewModel.loadReposMore()
+                                }
+                                LoadMoreFooter(
+                                    visible = ui.loadingRepos,
+                                    failed = ui.reposLoadMoreFailed,
+                                    onRetry = viewModel::loadReposMore,
+                                )
                             }
                         }
                         if (ui.selectedTab == 1 && ui.starsNextPage != null) {
                             item(key = "stars-more") {
-                                LaunchedEffect(ui.stars.size) { viewModel.loadStarsMore() }
-                                LoadMoreFooter(visible = ui.loadingStars)
+                                LaunchedEffect(ui.stars.size, ui.starsLoadMoreFailed) {
+                                    if (!ui.starsLoadMoreFailed) viewModel.loadStarsMore()
+                                }
+                                LoadMoreFooter(
+                                    visible = ui.loadingStars,
+                                    failed = ui.starsLoadMoreFailed,
+                                    onRetry = viewModel::loadStarsMore,
+                                )
                             }
                         }
                     }
@@ -190,7 +207,7 @@ private fun EmptyProfileList(isStars: Boolean) {
     } else {
         stringResource(R.string.profile_empty_repos_title) to stringResource(R.string.profile_empty_repos_body)
     }
-    com.gityou.app.ui.components.EmptyState(
+    EmptyState(
         icon = Icons.Filled.Book,
         title = title,
         body = body,

@@ -42,6 +42,7 @@ import com.gityou.app.ui.components.GyNavigationRail
 import com.gityou.app.ui.components.LocalHapticsEnabled
 import com.gityou.app.ui.components.LocalMarkdownFactory
 import com.gityou.app.ui.components.LocalRenderMarkdown
+import com.gityou.app.ui.components.MarkdownFactory
 import com.gityou.app.ui.navigation.GitYouNavHost
 import com.gityou.app.ui.navigation.Route
 import com.gityou.app.ui.navigation.navigateTopLevel
@@ -65,6 +66,7 @@ private fun defaultTabRoute(raw: String?): String = when (raw) {
 @Composable
 fun GitYouApp(
     windowSizeClass: WindowWidthSizeClass,
+    markdownFactory: MarkdownFactory,
     appViewModel: AppViewModel = hiltViewModel(),
 ) {
     val appState by appViewModel.appState.collectAsStateWithLifecycle()
@@ -88,13 +90,13 @@ fun GitYouApp(
         expressiveMotion = settings.expressiveMotion,
     ) {
         CompositionLocalProvider(
-            LocalMarkdownFactory provides appViewModel.markdownFactory,
+            LocalMarkdownFactory provides markdownFactory,
             LocalHapticsEnabled provides settings.hapticsEnabled,
             LocalRenderMarkdown provides settings.renderMarkdown,
             LocalDensity provides scaledDensity,
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                when (val state = appState) {
+                when (appState) {
                     AppViewModel.AppState.Loading -> BrandedLoading()
                     AppViewModel.AppState.SignedOut -> AuthScreen()
                     is AppViewModel.AppState.SignedIn -> MainScaffold(

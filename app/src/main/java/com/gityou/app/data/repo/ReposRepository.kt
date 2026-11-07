@@ -18,6 +18,19 @@ class ReposRepository @Inject constructor(
     private val api: GitHubApi,
 ) {
 
+    /** The file cannot be shown as text; [Reason] maps to a localized message. */
+    class FilePreviewException(val reason: Reason) : Exception(reason.name) {
+        enum class Reason { TOO_LARGE, BINARY, UNSUPPORTED }
+    }
+
+    private companion object {
+        /** GitHub inlines content only for files up to 1 MB. */
+        const val MAX_INLINE_BYTES = 1_048_576L
+
+        /** NUL-byte scan window for the binary heuristic. */
+        const val BINARY_SCAN_BYTES = 8_192
+    }
+
     suspend fun myRepos(page: Int): Page<Repo> = LinkHeaderParser.pageFromResponse(api.myRepos(page = page))
 
     suspend fun myStars(page: Int): Page<Repo> = LinkHeaderParser.pageFromResponse(api.myStars(page = page))
@@ -41,9 +54,23 @@ class ReposRepository @Inject constructor(
     /** Fetches one file with its base64 content decoded to text. */
     suspend fun fileContent(owner: String, name: String, path: String, ref: String?): String {
         val item = api.contentFile(owner, name, path, ref)
-        val encoded = item.content ?: return ""
-        val decoded = java.util.Base64.getMimeDecoder().decode(encoded.replace("\n", "").replace("\r", ""))
-        return String(decoded, Charsets.UTF_8)
+        val encoded = item.content ?: throw FilePreviewException(
+            // GitHub inline-encodes only files up to ~1 MB; anything bigger
+            // (and exotic entries like submodules) arrives without content.
+            if (item.size > MAX_INLINE_BYTES) {
+                FilePreviewException.Reason.TOO_LARGE
+            } else {
+                FilePreviewException.Reason.UNSUPPORTED
+            },
+        )
+        val bytes = java.util.Base64.getMimeDecoder().decode(encoded.replace("\n", "").replace("\r", ""))
+        // Cheap binary heuristic: a NUL byte in the first 8 KB means the
+        // UTF-8 render would be mojibake, not a readable preview (F-021).
+        val scanEnd = minOf(bytes.size, BINARY_SCAN_BYTES)
+        for (i in 0 until scanEnd) {
+            if (bytes[i] == 0.toByte()) throw FilePreviewException(FilePreviewException.Reason.BINARY)
+        }
+        return String(bytes, Charsets.UTF_8)
     }
 
     suspend fun issues(owner: String, name: String, state: String, page: Int): Page<Issue> {

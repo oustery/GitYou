@@ -216,7 +216,9 @@ fun IssueRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp),
                     )
-                    Text(" $count", style = MaterialTheme.typography.bodySmall)
+                    // A real gap, not a space character glued to the number (F-029).
+                    Spacer(Modifier.width(2.dp))
+                    Text(count.toString(), style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -256,7 +258,8 @@ fun PullRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp),
                     )
-                    Text(" $count", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.width(2.dp))
+                    Text(count.toString(), style = MaterialTheme.typography.bodySmall)
                 }
             }
         },

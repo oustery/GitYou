@@ -21,11 +21,11 @@ object Formatters {
         }
     }
 
-    /** 1234 -> "1.2k", 1234567 -> "1.2M". */
+    /** 1234 -> "1.2k", 1234567 -> "1.2M". Locale.ROOT: canonical digits/dot (F-025). */
     fun count(value: Int): String = when {
-        value >= 1_000_000 -> "%.1fM".format(value / 1_000_000.0)
+        value >= 1_000_000 -> "%.1fM".format(Locale.ROOT, value / 1_000_000.0)
         value >= 10_000 -> "${value / 1000}k"
-        value >= 1_000 -> "%.1fk".format(value / 1000.0)
+        value >= 1_000 -> "%.1fk".format(Locale.ROOT, value / 1000.0)
         else -> value.toString()
     }
 
@@ -45,7 +45,7 @@ object Formatters {
         return if (scaled % 1.0 == 0.0 && value < 1024) {
             "${scaled.toInt()} $unit"
         } else {
-            "%.1f $unit".format(scaled)
+            "%.1f $unit".format(Locale.ROOT, scaled)
         }
     }
 

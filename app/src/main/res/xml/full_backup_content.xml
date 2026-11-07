@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Pre-Android-12 full backup rules: same policy as data_extraction_rules —
+    never back up the DataStore file that contains the GitHub token (F-004).
+-->
+<full-backup-content>
+    <exclude domain="file" path="gityou.preferences_pb" />
+</full-backup-content>

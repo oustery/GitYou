@@ -4,6 +4,7 @@ import com.gityou.app.data.remote.GitHubApi
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.remote.dto.Page
 import com.gityou.app.data.util.LinkHeaderParser
+import com.gityou.app.data.util.safeCall
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,7 +20,7 @@ class NotificationsRepository @Inject constructor(
 
     /** Best-effort count of unread items on the first page; null on failure. */
     suspend fun unreadEstimate(): Int? =
-        runCatching {
+        safeCall {
             LinkHeaderParser.pageFromResponse(api.notifications(perPage = 50))
                 .items
                 .count { it.unread }

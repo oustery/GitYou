@@ -151,7 +151,8 @@ interface GitHubApi {
         @Path("repo") repo: String,
         @Path("number") number: Int,
         @Query("per_page") perPage: Int = 50,
-    ): List<Comment>
+        @Query("page") page: Int = 1,
+    ): Response<List<Comment>>
 
     @POST("repos/{owner}/{repo}/issues/{number}/comments")
     suspend fun addComment(

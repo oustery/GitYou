@@ -1,6 +1,7 @@
 package com.gityou.app.ui.screens.home
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,7 +70,7 @@ fun HomeScreen(
                     )
                 } else {
                     LazyColumn(
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        contentPadding = PaddingValues(
                             horizontal = Spacing.lg,
                             vertical = Spacing.md,
                         ),
@@ -77,7 +78,11 @@ fun HomeScreen(
                         item {
                             EyebrowLabel(stringResource(R.string.home_repos_section))
                         }
-                        itemsIndexed(home.repos, key = { _, repo -> repo.id }) { _, repo ->
+                        itemsIndexed(home.repos, key = { index, repo ->
+                            // Fallback keeps LazyColumn keys unique even if a
+                            // DTO arrives with the default id = 0 (F-014).
+                            if (repo.id != 0L) repo.id else "repo-$index-${repo.name}"
+                        }) { _, repo ->
                             val ownerLogin = repo.owner?.login
                                 ?: repo.fullName?.substringBefore('/') ?: ""
                             if (ownerLogin.isNotEmpty()) {
@@ -86,13 +91,19 @@ fun HomeScreen(
                                     showAvatar = false,
                                     onClick = { onOpenRepo(ownerLogin, repo.name) },
                                 )
-                                androidx.compose.foundation.layout.Spacer(Modifier.height(Spacing.md))
+                                Spacer(Modifier.height(Spacing.md))
                             }
                         }
                         if (home.hasMore) {
                             item(key = "load-more") {
-                                LaunchedEffect(home.repos.size) { viewModel.loadMore() }
-                                LoadMoreFooter(visible = home.loadingMore)
+                                LaunchedEffect(home.repos.size, home.loadMoreFailed) {
+                                    if (!home.loadMoreFailed) viewModel.loadMore()
+                                }
+                                LoadMoreFooter(
+                                    visible = home.loadingMore,
+                                    failed = home.loadMoreFailed,
+                                    onRetry = viewModel::loadMore,
+                                )
                             }
                         }
                     }

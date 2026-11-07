@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gityou.app.data.repo.IssuesRepository
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.safeCall
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,12 +40,12 @@ class NewIssueViewModel @Inject constructor(
         if (title.isBlank() || _state.value.phase == NewIssuePhase.Submitting) return
         viewModelScope.launch {
             _state.value = NewIssueState(phase = NewIssuePhase.Submitting)
-            try {
-                val issue = issuesRepository.createIssue(owner, repoName, title.trim(), body.trim().ifBlank { null })
-                _state.value = NewIssueState(phase = NewIssuePhase.Idle, createdNumber = issue.number)
-            } catch (t: Throwable) {
-                _state.value = NewIssueState(phase = NewIssuePhase.Error(ApiErrors.keyOf(t)))
-            }
+            _state.value = safeCall {
+                issuesRepository.createIssue(owner, repoName, title.trim(), body.trim().ifBlank { null })
+            }.fold(
+                onSuccess = { issue -> NewIssueState(phase = NewIssuePhase.Idle, createdNumber = issue.number) },
+                onFailure = { t -> NewIssueState(phase = NewIssuePhase.Error(ApiErrors.keyOf(t))) },
+            )
         }
     }
 }

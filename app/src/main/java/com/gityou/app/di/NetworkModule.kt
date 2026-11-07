@@ -27,6 +27,16 @@ annotation class GitHubRetrofit
 @Retention(AnnotationRetention.BINARY)
 annotation class AuthRetrofit
 
+/**
+ * OkHttp client for markdown images (README badges, issue screenshots).
+ * Deliberately WITHOUT AuthInterceptor: image URLs point at arbitrary
+ * third-party hosts (camo.githubusercontent.com, shields.io, <img src> in
+ * issue bodies) and must never receive the GitHub bearer token (F-002).
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MarkdownImageClient
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -53,6 +63,16 @@ object NetworkModule {
                     }
                 },
             )
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+    /** Unauthenticated client for arbitrary image hosts; no token, no logging. */
+    @Provides
+    @Singleton
+    @MarkdownImageClient
+    fun provideMarkdownImageClient(): OkHttpClient =
+        OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()

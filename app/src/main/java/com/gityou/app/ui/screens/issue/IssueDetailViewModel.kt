@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gityou.app.data.remote.dto.Comment
 import com.gityou.app.data.repo.IssuesRepository
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -60,6 +61,11 @@ class IssueDetailViewModel @Inject constructor(
     private val _commentError = MutableStateFlow(false)
     val commentError: StateFlow<Boolean> = _commentError.asStateFlow()
 
+    // One-shot success flag: the UI clears the draft only after the comment
+    // was actually accepted, so a network failure never eats typed text (F-008).
+    private val _commentSent = MutableStateFlow(false)
+    val commentSent: StateFlow<Boolean> = _commentSent.asStateFlow()
+
     init {
         load()
     }
@@ -67,8 +73,8 @@ class IssueDetailViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _state.value = UiState.Loading
-            try {
-                val detail = if (isPull) {
+            val detailResult = safeCall {
+                if (isPull) {
                     issuesRepository.pullRequest(owner, repoName, number).let { pull ->
                         IssueDetailUi(
                             isPull = true,
@@ -106,26 +112,26 @@ class IssueDetailViewModel @Inject constructor(
                         )
                     }
                 }
-                _state.value = UiState.Content(IssueDetailScreenState(detail = detail, commentsLoading = true))
-                loadComments()
-            } catch (t: Throwable) {
-                _state.value = UiState.Error(ApiErrors.keyOf(t))
             }
+            val detail = detailResult.getOrNull()
+            if (detail == null) {
+                _state.value = UiState.Error(ApiErrors.keyOf(detailResult.exceptionOrNull()!!))
+                return@launch
+            }
+            _state.value = UiState.Content(IssueDetailScreenState(detail = detail, commentsLoading = true))
+            loadComments()
         }
     }
 
     private suspend fun loadComments() {
-        try {
-            val comments = issuesRepository.comments(owner, repoName, number)
-            (_state.value as? UiState.Content)?.let { content ->
-                _state.value = UiState.Content(
-                    content.value.copy(detail = content.value.detail.copy(comments = comments), commentsLoading = false),
-                )
-            }
-        } catch (t: Throwable) {
-            (_state.value as? UiState.Content)?.let { content ->
-                _state.value = UiState.Content(content.value.copy(commentsLoading = false))
-            }
+        val result = safeCall { issuesRepository.comments(owner, repoName, number) }
+        (_state.value as? UiState.Content)?.let { content ->
+            _state.value = UiState.Content(
+                content.value.copy(
+                    detail = content.value.detail.copy(comments = result.getOrDefault(content.value.detail.comments)),
+                    commentsLoading = false,
+                ),
+            )
         }
     }
 
@@ -134,22 +140,33 @@ class IssueDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _commentError.value = false
             patch { it.copy(sendingComment = true) }
-            try {
-                val comment = issuesRepository.addComment(owner, repoName, number, body.trim())
-                patch {
-                    it.copy(
-                        sendingComment = false,
-                        detail = it.detail.copy(
-                            comments = it.detail.comments + comment,
-                            commentCount = it.detail.commentCount + 1,
-                        ),
-                    )
-                }
-            } catch (t: Throwable) {
-                patch { it.copy(sendingComment = false) }
-                _commentError.value = true
+            val result = safeCall {
+                issuesRepository.addComment(owner, repoName, number, body.trim())
             }
+            result.fold(
+                onSuccess = { comment ->
+                    patch {
+                        it.copy(
+                            sendingComment = false,
+                            detail = it.detail.copy(
+                                comments = it.detail.comments + comment,
+                                commentCount = it.detail.commentCount + 1,
+                            ),
+                        )
+                    }
+                    _commentSent.value = true
+                },
+                onFailure = { _ ->
+                    patch { it.copy(sendingComment = false) }
+                    // The draft stays in the field on purpose.
+                    _commentError.value = true
+                },
+            )
         }
+    }
+
+    fun consumeCommentSent() {
+        _commentSent.value = false
     }
 
     private fun patch(update: (IssueDetailScreenState) -> IssueDetailScreenState) {

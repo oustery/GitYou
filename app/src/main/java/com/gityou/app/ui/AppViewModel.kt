@@ -6,9 +6,9 @@ import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.store.TokenStore
-import com.gityou.app.ui.components.MarkdownFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +21,6 @@ class AppViewModel @Inject constructor(
     private val tokenStore: TokenStore,
     private val authRepository: AuthRepository,
     private val notificationsRepository: NotificationsRepository,
-    val markdownFactory: MarkdownFactory,
 ) : ViewModel() {
 
     sealed interface AppState {
@@ -52,12 +51,18 @@ class AppViewModel @Inject constructor(
                 }
                 val user = try {
                     authRepository.currentUser()
-                } catch (error: Exception) {
-                    if (error is HttpException && error.code() == 401) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (error: HttpException) {
+                    if (error.code() == 401) {
                         // Stale token: drop it, the flow re-emits and signs us out.
                         tokenStore.clearToken()
                     }
-                    null // network problems or rate limits keep the signed-in shell
+                    null // auth problems other than 401 keep the signed-in shell
+                } catch (ignored: Exception) {
+                    // Network problems or rate limits keep the signed-in shell;
+                    // the token flow re-validates on the next change.
+                    null
                 }
                 if (tokenStore.cachedToken() != null) {
                     _appState.value = AppState.SignedIn(user)

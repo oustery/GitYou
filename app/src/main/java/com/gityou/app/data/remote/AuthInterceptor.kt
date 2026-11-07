@@ -8,8 +8,12 @@ import okhttp3.Response
 
 /**
  * Adds authentication and versioning headers to GitHub API requests.
- * Explicit per-request headers always win, so the OAuth endpoints can
- * keep their `Accept: application/json` and stay token-free.
+ *
+ * The token is attached **only** to `api.github.com` requests: this client is
+ * also reachable for the `github.com/login` OAuth endpoints (which must stay
+ * token-free) and historically leaked the bearer token to any host it was
+ * pointed at (F-005). Explicit per-request headers always win, so the OAuth
+ * endpoints keep their `Accept: application/json`.
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -20,15 +24,24 @@ class AuthInterceptor @Inject constructor(
         val request = chain.request()
         val builder = request.newBuilder()
 
-        if (request.header("Accept") == null) {
-            builder.header("Accept", "application/vnd.github+json")
-        }
-        builder.header("X-GitHub-Api-Version", "2022-11-28")
+        val isApiHost = request.url.host == API_HOST
 
-        if (request.header("Authorization") == null) {
-            tokenStore.cachedToken()?.let { builder.header("Authorization", "Bearer $it") }
+        if (isApiHost) {
+            if (request.header("Accept") == null) {
+                builder.header("Accept", "application/vnd.github+json")
+            }
+            builder.header("X-GitHub-Api-Version", API_VERSION)
+
+            if (request.header("Authorization") == null) {
+                tokenStore.cachedToken()?.let { builder.header("Authorization", "Bearer $it") }
+            }
         }
 
         return chain.proceed(builder.build())
+    }
+
+    private companion object {
+        const val API_HOST = "api.github.com"
+        const val API_VERSION = "2022-11-28"
     }
 }

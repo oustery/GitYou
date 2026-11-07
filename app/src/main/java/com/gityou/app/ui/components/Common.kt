@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
 import com.gityou.app.R
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.ui.theme.Spacing
@@ -36,18 +37,22 @@ sealed interface UiState<out T> {
     data class Content<T>(val value: T) : UiState<T>
 }
 
+/** Single key → resource mapping; [errorMessageFor] and snackbars both use it. */
+@StringRes
+fun errorKeyRes(errorKey: String): Int = when (errorKey) {
+    ApiErrors.KEY_UNAUTHORIZED -> R.string.error_unauthorized
+    ApiErrors.KEY_RATE_LIMIT -> R.string.error_rate_limit
+    ApiErrors.KEY_FORBIDDEN -> R.string.error_forbidden
+    ApiErrors.KEY_NOT_FOUND -> R.string.error_not_found
+    ApiErrors.KEY_VALIDATION -> R.string.error_validation
+    ApiErrors.KEY_NETWORK -> R.string.error_network
+    ApiErrors.KEY_HTTP -> R.string.error_http
+    else -> R.string.error_unknown
+}
+
 /** Localized user-facing message for an [ApiErrors] key. */
 @Composable
-fun errorMessageFor(errorKey: String): String = when (errorKey) {
-    ApiErrors.KEY_UNAUTHORIZED -> stringResource(R.string.error_unauthorized)
-    ApiErrors.KEY_RATE_LIMIT -> stringResource(R.string.error_rate_limit)
-    ApiErrors.KEY_FORBIDDEN -> stringResource(R.string.error_forbidden)
-    ApiErrors.KEY_NOT_FOUND -> stringResource(R.string.error_not_found)
-    ApiErrors.KEY_VALIDATION -> stringResource(R.string.error_validation)
-    ApiErrors.KEY_NETWORK -> stringResource(R.string.error_network)
-    ApiErrors.KEY_HTTP -> stringResource(R.string.error_http)
-    else -> stringResource(R.string.error_unknown)
-}
+fun errorMessageFor(errorKey: String): String = stringResource(errorKeyRes(errorKey))
 
 /** Whether tactile feedback is on; the user setting is provided at the app root. */
 val LocalHapticsEnabled = staticCompositionLocalOf { true }

@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.gityou.app.data.store.TokenStore
 import com.gityou.app.ui.GitYouApp
+import com.gityou.app.ui.components.MarkdownFactory
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -26,6 +27,10 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var tokenStore: TokenStore
 
+    /** UI-layer factory provided here, not through a ViewModel (F-018). */
+    @Inject
+    lateinit var markdownFactory: MarkdownFactory
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -33,7 +38,10 @@ class MainActivity : ComponentActivity() {
         observeLanguageSetting()
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
-            GitYouApp(windowSizeClass = windowSizeClass.widthSizeClass)
+            GitYouApp(
+                windowSizeClass = windowSizeClass.widthSizeClass,
+                markdownFactory = markdownFactory,
+            )
         }
     }
 

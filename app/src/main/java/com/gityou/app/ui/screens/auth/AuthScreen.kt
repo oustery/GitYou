@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -252,7 +253,9 @@ private fun PatCard(
     patState: PatState,
     onSignIn: (String) -> Unit,
 ) {
-    var token by rememberSaveable { mutableStateOf("") }
+    // Plain remember, NOT rememberSaveable: a token must never land in the
+    // saved instance state bundle, where the system (and logs) can read it (F-024).
+    var token by remember { mutableStateOf("") }
     var showToken by rememberSaveable { mutableStateOf(false) }
 
     Surface(

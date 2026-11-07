@@ -7,6 +7,7 @@ import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.ReposRepository
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -21,9 +22,12 @@ data class ProfileUi(
     val repos: List<Repo> = emptyList(),
     val reposNextPage: Int? = 1,
     val loadingRepos: Boolean = false,
+    // Failed «load more» keeps the footer retryable instead of wedged (F-013).
+    val reposLoadMoreFailed: Boolean = false,
     val stars: List<Repo> = emptyList(),
     val starsNextPage: Int? = 1,
     val loadingStars: Boolean = false,
+    val starsLoadMoreFailed: Boolean = false,
     val selectedTab: Int = 0,
 )
 
@@ -43,15 +47,14 @@ class ProfileViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _state.value = UiState.Loading
-            _state.value = try {
-                val user = authRepository.currentUser()
-                UiState.Content(ProfileUi(user = user))
-            } catch (t: Throwable) {
-                UiState.Error(ApiErrors.keyOf(t))
-                return@launch
-            }
-            val reposDeferred = async { runCatching { reposRepository.myRepos(page = 1) } }
-            val starsDeferred = async { runCatching { reposRepository.myStars(page = 1) } }
+            _state.value = safeCall { authRepository.currentUser() }.fold(
+                onSuccess = { user -> UiState.Content(ProfileUi(user = user)) },
+                onFailure = { t -> UiState.Error(ApiErrors.keyOf(t)) },
+            )
+            if (_state.value !is UiState.Content) return@launch
+
+            val reposDeferred = async { safeCall { reposRepository.myRepos(page = 1) } }
+            val starsDeferred = async { safeCall { reposRepository.myStars(page = 1) } }
 
             val reposResult = reposDeferred.await()
             val starsResult = starsDeferred.await()
@@ -78,13 +81,25 @@ class ProfileViewModel @Inject constructor(
     fun loadReposMore() {
         val current = (_state.value as? UiState.Content)?.value ?: return
         if (current.loadingRepos || current.reposNextPage == null) return
+        val nextPage = current.reposNextPage ?: return
         viewModelScope.launch {
             patch { it.copy(loadingRepos = true) }
-            try {
-                val page = reposRepository.myRepos(page = current.reposNextPage)
-                patch { it.copy(repos = it.repos + page.items, reposNextPage = page.nextPage, loadingRepos = false) }
-            } catch (t: Throwable) {
-                patch { it.copy(loadingRepos = false) }
+            val page = safeCall { reposRepository.myRepos(page = nextPage) }
+            // Apply only if the request we started is still current (F-006).
+            val latest = (_state.value as? UiState.Content)?.value
+            if (latest == null || !latest.loadingRepos) return@launch
+            patch {
+                page.fold(
+                    onSuccess = { p ->
+                        it.copy(
+                            repos = it.repos + p.items,
+                            reposNextPage = p.nextPage,
+                            loadingRepos = false,
+                            reposLoadMoreFailed = false,
+                        )
+                    },
+                    onFailure = { _ -> it.copy(loadingRepos = false, reposLoadMoreFailed = true) },
+                )
             }
         }
     }
@@ -92,13 +107,24 @@ class ProfileViewModel @Inject constructor(
     fun loadStarsMore() {
         val current = (_state.value as? UiState.Content)?.value ?: return
         if (current.loadingStars || current.starsNextPage == null) return
+        val nextPage = current.starsNextPage ?: return
         viewModelScope.launch {
             patch { it.copy(loadingStars = true) }
-            try {
-                val page = reposRepository.myStars(page = current.starsNextPage)
-                patch { it.copy(stars = it.stars + page.items, starsNextPage = page.nextPage, loadingStars = false) }
-            } catch (t: Throwable) {
-                patch { it.copy(loadingStars = false) }
+            val page = safeCall { reposRepository.myStars(page = nextPage) }
+            val latest = (_state.value as? UiState.Content)?.value
+            if (latest == null || !latest.loadingStars) return@launch
+            patch {
+                page.fold(
+                    onSuccess = { p ->
+                        it.copy(
+                            stars = it.stars + p.items,
+                            starsNextPage = p.nextPage,
+                            loadingStars = false,
+                            starsLoadMoreFailed = false,
+                        )
+                    },
+                    onFailure = { _ -> it.copy(loadingStars = false, starsLoadMoreFailed = true) },
+                )
             }
         }
     }

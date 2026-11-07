@@ -108,9 +108,11 @@ import com.gityou.app.ui.components.PullRow
 import com.gityou.app.ui.components.StatBlock
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.appHaptics
+import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private val tabTitles = listOf(
     R.string.repo_tab_about,
@@ -169,8 +171,7 @@ fun RepoScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            val selectedTab = (state as? com.gityou.app.ui.components.UiState.Content<*>)?.value
-                ?.let { (it as? RepoDetailUi)?.selectedTab }
+            val selectedTab = (state as? UiState.Content<RepoDetailUi>)?.value?.selectedTab
             if (selectedTab == 2) {
                 // A labeled action: the text removes the guesswork about what
                 // the round button does.
@@ -210,7 +211,7 @@ fun RepoScreen(
                     label = "repoTabContent",
                 ) { tab ->
                     when (tab) {
-                        0 -> AboutTab(ui, viewModel, owner, repoName)
+                        0 -> AboutTab(ui, viewModel)
                         1 -> CodeTab(ui, viewModel)
                         2 -> IssuesTab(ui, viewModel, onOpenIssue)
                         else -> PullsTab(ui, viewModel, onOpenIssue)
@@ -299,7 +300,9 @@ fun RepoScreen(
                             val capped = lines.take(FILE_PREVIEW_MAX_LINES)
                             buildString {
                                 capped.forEachIndexed { index, line ->
-                                    append(String.format("%4d │ ", index + 1))
+                                    // Locale.ROOT: line numbers are canonical "1234",
+                                    // never "١٢٣٤" or "1 234" (F-025).
+                                    append(String.format(Locale.ROOT, "%4d │ ", index + 1))
                                     append(line)
                                     append('\n')
                                 }
@@ -333,8 +336,6 @@ fun RepoScreen(
 private fun AboutTab(
     ui: RepoDetailUi,
     viewModel: RepoViewModel,
-    owner: String,
-    repoName: String,
 ) {
     val context = LocalContext.current
     val haptics = appHaptics()
@@ -424,7 +425,7 @@ private fun AboutTab(
         EyebrowLabel(stringResource(R.string.repo_readme_section))
 
         when (val readme = ui.readme) {
-            is com.gityou.app.ui.components.UiState.Loading -> {
+            is UiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -434,7 +435,7 @@ private fun AboutTab(
                     LinearWavyProgressIndicator()
                 }
             }
-            is com.gityou.app.ui.components.UiState.Error -> {
+            is UiState.Error -> {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -456,7 +457,7 @@ private fun AboutTab(
                     }
                 }
             }
-            is com.gityou.app.ui.components.UiState.Content -> MarkdownText(
+            is UiState.Content -> MarkdownText(
                 markdown = readme.value,
                 textStyle = MaterialTheme.typography.bodyLarge,
             )
@@ -645,6 +646,7 @@ private fun IssuesTab(
         onFilter = viewModel::setIssueFilter,
         items = ui.issues.items,
         loadingMore = ui.issues.loadingMore,
+        loadMoreFailed = ui.issues.loadMoreFailed,
         hasMore = ui.issues.nextPage != null,
         onLoadMore = viewModel::loadIssuesMore,
         rowContent = { issue -> IssueRow(issue = issue, onClick = { onOpenIssue(issue.number, false) }) },
@@ -665,6 +667,7 @@ private fun PullsTab(
         onFilter = viewModel::setPullFilter,
         items = ui.pulls.items,
         loadingMore = ui.pulls.loadingMore,
+        loadMoreFailed = ui.pulls.loadMoreFailed,
         hasMore = ui.pulls.nextPage != null,
         onLoadMore = viewModel::loadPullsMore,
         rowContent = { pull -> PullRow(pull = pull, onClick = { onOpenIssue(pull.number, true) }) },
@@ -680,6 +683,7 @@ private fun <T> ListWithFilter(
     onFilter: (String) -> Unit,
     items: List<T>,
     loadingMore: Boolean,
+    loadMoreFailed: Boolean,
     hasMore: Boolean,
     onLoadMore: () -> Unit,
     rowContent: @Composable (T) -> Unit,
@@ -720,8 +724,14 @@ private fun <T> ListWithFilter(
                 }
                 if (hasMore) {
                     item(key = "load-more") {
-                        LaunchedEffect(items.size) { onLoadMore() }
-                        LoadMoreFooter(visible = loadingMore)
+                        LaunchedEffect(items.size, loadMoreFailed) {
+                            if (!loadMoreFailed) onLoadMore()
+                        }
+                        LoadMoreFooter(
+                            visible = loadingMore,
+                            failed = loadMoreFailed,
+                            onRetry = onLoadMore,
+                        )
                     }
                 }
             }

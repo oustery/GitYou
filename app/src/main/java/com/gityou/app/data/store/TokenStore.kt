@@ -1,6 +1,7 @@
 package com.gityou.app.data.store
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -45,6 +46,15 @@ class TokenStore @Inject constructor(
         produceFile = { File(context.filesDir, "gityou.preferences_pb") },
     )
 
+    /** Never swallow DataStore failures silently (F-023): corrupted prefs must be diagnosable. */
+    private fun logDataStoreError(area: String, cause: Throwable) {
+        Log.w(TAG, "DataStore read failed ($area); falling back to defaults", cause)
+    }
+
+    private companion object {
+        const val TAG = "TokenStore"
+    }
+
     private object Keys {
         val TOKEN = stringPreferencesKey("github_token")
         val CLIENT_ID = stringPreferencesKey("oauth_client_id")
@@ -67,17 +77,17 @@ class TokenStore @Inject constructor(
     init {
         scope.launch {
             dataStore.data
-                .catch { /* corrupted preferences: start clean */ }
+                .catch { cause -> logDataStoreError("token cache", cause) }
                 .collect { prefs -> cachedToken = prefs[Keys.TOKEN] }
         }
     }
 
     val tokenFlow: Flow<String?> = dataStore.data
-        .catch { }
+        .catch { cause -> logDataStoreError("token flow", cause) }
         .map { it[Keys.TOKEN] }
 
     val settingsFlow: Flow<AppSettings> = dataStore.data
-        .catch { }
+        .catch { cause -> logDataStoreError("settings flow", cause) }
         .map { prefs ->
             AppSettings(
                 themeMode = prefs[Keys.THEME_MODE] ?: "system",
@@ -103,11 +113,19 @@ class TokenStore @Inject constructor(
     }
 
     suspend fun saveToken(token: String) {
-        dataStore.edit { it[Keys.TOKEN] = token.trim() }
+        val trimmed = token.trim()
+        dataStore.edit { it[Keys.TOKEN] = trimmed }
+        // Update the cache in the same call: the first request after sign-in
+        // must already carry the Authorization header (the collector above is
+        // asynchronous and would race the network call, F-005).
+        cachedToken = trimmed
     }
 
     suspend fun clearToken() {
         dataStore.edit { it.remove(Keys.TOKEN) }
+        // Same race as saveToken: a request fired right after sign-out must
+        // not go out with the stale token attached.
+        cachedToken = null
     }
 
     suspend fun saveClientId(clientId: String) {

@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.util.Formatters
@@ -73,6 +74,7 @@ import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.appHaptics
+import com.gityou.app.ui.components.errorKeyRes
 import com.gityou.app.ui.components.relativeTimeString
 import com.gityou.app.ui.theme.Spacing
 
@@ -91,9 +93,8 @@ fun NotificationsScreen(
     val markReadOnOpen by viewModel.markReadOnOpen.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(NotificationsFilter.ALL) }
 
-    val items = (state as? UiState.Content<*>)?.value
-        ?.let { (it as? NotificationsUi)?.items }
-        .orEmpty()
+    // The flow is typed UiState<NotificationsUi>; no unchecked casts needed.
+    val items = (state as? UiState.Content<NotificationsUi>)?.value?.items.orEmpty()
     val unreadCount = items.count { it.unread }
     val visibleItems = when (filter) {
         NotificationsFilter.ALL -> items
@@ -101,12 +102,16 @@ fun NotificationsScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val haptics = appHaptics()
 
     LaunchedEffect(message) {
         message?.let {
-            snackbarHostState.showSnackbar(context.getString(it))
+            val text = when (it) {
+                is UiMessage.Res -> context.getString(it.id)
+                is UiMessage.Error -> context.getString(errorKeyRes(it.errorKey))
+            }
+            snackbarHostState.showSnackbar(text)
             viewModel.consumeMessage()
         }
     }
@@ -203,8 +208,14 @@ fun NotificationsScreen(
                                 }
                                 if (ui.hasMore) {
                                     item(key = "load-more") {
-                                        LaunchedEffect(ui.items.size) { viewModel.loadMore() }
-                                        LoadMoreFooter(visible = ui.loadingMore)
+                                        LaunchedEffect(ui.items.size, ui.loadMoreFailed) {
+                                            if (!ui.loadMoreFailed) viewModel.loadMore()
+                                        }
+                                        LoadMoreFooter(
+                                            visible = ui.loadingMore,
+                                            failed = ui.loadMoreFailed,
+                                            onRetry = viewModel::loadMore,
+                                        )
                                     }
                                 }
                             }

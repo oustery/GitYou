@@ -7,15 +7,19 @@ import android.widget.TextView
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
+import com.gityou.app.data.util.MarkdownPreprocessor
+import com.gityou.app.di.MarkdownImageClient
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
 import io.noties.markwon.core.MarkwonTheme
@@ -28,6 +32,9 @@ import io.noties.markwon.image.gif.GifMediaDecoder
 import io.noties.markwon.image.network.OkHttpNetworkSchemeHandler
 import io.noties.markwon.image.svg.SvgMediaDecoder
 import io.noties.markwon.linkify.LinkifyPlugin
+import io.noties.markwon.syntax.Prism4jThemeDarkula
+import io.noties.markwon.syntax.Prism4jThemeDefault
+import io.noties.markwon.syntax.SyntaxHighlightPlugin
 import javax.inject.Inject
 import javax.inject.Singleton
 import okhttp3.OkHttpClient
@@ -35,20 +42,31 @@ import okhttp3.OkHttpClient
 /**
  * Builds a fully configured [Markwon] instance bound to the current theme.
  *
- * One instance per color scheme is enough: schemes change rarely, and the
- * builder is cheap. The factory is provided through Hilt so markdown images
- * reuse the app's OkHttp client (connection pool, timeouts, logging off).
+ * Instances are cached per [ColorScheme] inside this singleton: every
+ * [MarkdownText] node (issue body + every comment in the list) used to
+ * rebuild the whole 10-plugin pipeline on first composition and on every
+ * scroll (F-010). The cache is keyed by theme identity, so dark/light,
+ * dynamic color and accent switches still get their own instance.
  *
- * Image pipeline: `ImagesPlugin` + `SvgPlugin` (shields.io/dependabot badges
- * are SVG) + `GifPlugin` (animated README demos). While an image is being
- * fetched a quiet surface-colored placeholder occupies its slot, so a slow
- * network never collapses the text layout.
+ * The image pipeline uses a dedicated UNAUTHENTICATED OkHttp client
+ * ([MarkdownImageClient]): markdown images live on arbitrary third-party
+ * hosts and must never receive the GitHub bearer token (F-002).
  */
 @Singleton
 class MarkdownFactory @Inject constructor(
-    private val imageClient: OkHttpClient,
+    @MarkdownImageClient private val imageClient: OkHttpClient,
 ) {
-    fun create(context: Context, colors: ColorScheme): Markwon {
+
+    // Application context only: a cached Markwon must never pin an Activity.
+    private val cache = object : LinkedHashMap<ColorScheme, Markwon>(4, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ColorScheme, Markwon>): Boolean = size > 4
+    }
+
+    fun create(context: Context, colors: ColorScheme): Markwon = synchronized(cache) {
+        cache.getOrPut(colors) { build(context.applicationContext, colors) }
+    }
+
+    private fun build(context: Context, colors: ColorScheme): Markwon {
         val density = context.resources.displayMetrics.density
         val cellPaddingPx = (8 * density).toInt()
 
@@ -64,8 +82,14 @@ class MarkdownFactory @Inject constructor(
                 plugin.placeholderProvider {
                     ColorDrawable(colors.surfaceContainerHigh.toArgb())
                 }
+                // A broken image shows a quiet themed block instead of
+                // silently collapsing to nothing (F-011).
+                plugin.errorHandler { _, _ ->
+                    ColorDrawable(colors.errorContainer.toArgb())
+                }
             })
             .usePlugin(HtmlPlugin.create())
+            .usePlugin(SyntaxHighlightPlugin.create(markdownPrism, codeTheme(colors)))
             .usePlugin(TablePlugin.create { builder ->
                 builder
                     .tableBorderColor(colors.outlineVariant.toArgb())
@@ -103,6 +127,16 @@ class MarkdownFactory @Inject constructor(
             })
             .build()
     }
+
+    private companion object {
+        /** Darkula for dark surfaces, default light theme otherwise. */
+        fun codeTheme(colors: ColorScheme) =
+            if (colors.background.luminance() < 0.5f) {
+                Prism4jThemeDarkula.create()
+            } else {
+                Prism4jThemeDefault.create()
+            }
+    }
 }
 
 /** Access point for [MarkdownFactory] inside composables. */
@@ -126,7 +160,7 @@ fun MarkdownText(
 ) {
     // The "Render Markdown" setting falls back to plain text everywhere.
     if (!LocalRenderMarkdown.current) {
-        androidx.compose.material3.Text(
+        Text(
             markdown,
             style = textStyle,
             modifier = modifier.fillMaxWidth(),
@@ -139,7 +173,7 @@ fun MarkdownText(
     val density = LocalDensity.current
     val markwon = remember(factory, colors, context) { factory.create(context, colors) }
     val prepared = remember(markdown) {
-        com.gityou.app.data.util.MarkdownPreprocessor.prepare(markdown)
+        MarkdownPreprocessor.prepare(markdown)
     }
     val parsed = remember(markwon, prepared) { markwon.toMarkdown(prepared) }
     // Density carries both the system and the in-app text scale settings.
@@ -153,7 +187,13 @@ fun MarkdownText(
             }
         },
         update = { textView ->
-            markwon.setParsedMarkdown(textView, parsed)
+            // Re-parse/set only when the markdown actually changed: update{}
+            // runs on every recomposition and a full setParsedMarkdown forces
+            // a complete layout pass (F-019).
+            if (textView.tag !== parsed) {
+                textView.tag = parsed
+                markwon.setParsedMarkdown(textView, parsed)
+            }
             textView.setTextColor(colors.onSurface.toArgb())
             textView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, bodySizePx)
             textView.setLineSpacing(0f, 1.25f)

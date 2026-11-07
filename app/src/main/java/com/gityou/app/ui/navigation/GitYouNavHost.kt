@@ -121,13 +121,9 @@ fun GitYouNavHost(
                 navArgument("isPull") { type = NavType.BoolType; defaultValue = false },
             ),
         ) { entry ->
-            val owner = entry.arguments?.getString("owner").orEmpty()
-            val name = entry.arguments?.getString("name").orEmpty()
             val number = entry.arguments?.getInt("number") ?: 0
             val isPull = entry.arguments?.getBoolean("isPull") ?: false
             IssueDetailScreen(
-                owner = owner,
-                repoName = name,
                 number = number,
                 isPull = isPull,
                 onBack = { navController.popBackStack() },

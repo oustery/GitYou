@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    // kapt is only used by the prism4j-bundler annotation processor (markdown
+    // syntax highlighting); Hilt itself runs through KSP.
+    alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -87,9 +90,9 @@ android {
     }
 
     lint {
-        // Vital lint for release keeps running; non-fatal issues must not
-        // break artifact production, CI reports them in the logs instead.
-        abortOnError = false
+        // Restored per audit F-027: lint errors fail the build instead of
+        // being silently ignored; CI reports warnings in the logs.
+        abortOnError = true
     }
 
     packaging {
@@ -105,7 +108,21 @@ kotlin {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    // mockk's inline instrumentation agent plus coroutine-based ViewModel
+    // tests need more than the 512m default heap.
+    maxHeapSize = "1g"
+}
+
 dependencies {
+    // prism4j (pulled in by markwon-syntax-highlight) depends on the legacy
+    // org.jetbrains:annotations-java5 jar whose classes are fully contained
+    // in the modern org.jetbrains:annotations; keeping both breaks the
+    // duplicate-classes check.
+    configurations.configureEach {
+        exclude(group = "org.jetbrains", module = "annotations-java5")
+    }
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
 
@@ -147,6 +164,13 @@ dependencies {
     implementation(libs.markwon.image)
     implementation(libs.markwon.image.svg)
     implementation(libs.markwon.image.gif)
+    // Fenced-code syntax highlighting (Prism4j-based, F-011).
+    implementation(libs.markwon.syntax.highlight)
+    // Annotation processor that generates the prism4j GrammarLocator with all
+    // bundled languages; consumed by the kapt configuration below.
+    kapt(libs.prism4j.bundler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.mockk)
 }
