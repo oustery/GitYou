@@ -20,7 +20,10 @@ markwon = "4.6.2"
 prism4jBundler = "2.0.0"
 junit = "4.13.2"
 coroutinesTest = "1.10.2"
-mockk = "1.14.11"
+# Pinned: 1.14.11 fails to intercept suspend calls on final classes during
+# mock recording (NPE in HomeViewModelTest / SearchViewModelTest); revisit
+# after the upstream regression is fixed.
+mockk = "1.14.2"
 detekt = "1.23.8"
 
 [libraries]

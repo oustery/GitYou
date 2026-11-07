@@ -16,6 +16,9 @@ jobs:
   build:
     name: Tests + per-ABI APKs
     runs-on: ubuntu-latest
+    # A hung run (stalled dependency download, wedged test JVM) must fail and
+    # flush its logs instead of burning the runner for 6 hours.
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
