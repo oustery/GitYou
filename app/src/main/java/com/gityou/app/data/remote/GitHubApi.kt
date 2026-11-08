@@ -195,6 +195,13 @@ interface GitHubApi {
         @Query("page") page: Int = 1,
     ): Response<List<Release>>
 
+    /** Newest non-draft release; 404 when the repository has no releases. */
+    @GET("repos/{owner}/{repo}/releases/latest")
+    suspend fun latestRelease(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+    ): Release
+
     @GET("repos/{owner}/{repo}/tags")
     suspend fun tags(
         @Path("owner") owner: String,

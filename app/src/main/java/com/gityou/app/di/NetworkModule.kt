@@ -37,6 +37,15 @@ annotation class AuthRetrofit
 @Retention(AnnotationRetention.BINARY)
 annotation class MarkdownImageClient
 
+/**
+ * Unauthenticated client for release-asset downloads. The browser_download_url
+ * redirects to GitHub's CDN, so the bearer token must not be attached;
+ * timeouts are generous because APKs are tens of megabytes.
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class DownloadClient
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -75,6 +84,16 @@ object NetworkModule {
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+    /** Unauthenticated client for large release-asset downloads from the CDN. */
+    @Provides
+    @Singleton
+    @DownloadClient
+    fun provideDownloadClient(): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .build()
 
     @Provides

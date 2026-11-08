@@ -239,6 +239,19 @@
     <string name="settings_cache_cleared">Кэш очищен</string>
     <string name="settings_releases">Релизы</string>
 
+    <!-- Обновление из приложения (Настройки → О приложении → Проверить обновления) -->
+    <string name="settings_check_updates">Проверить обновления</string>
+    <string name="update_checking">Проверяем…</string>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_dialog_version">Версия %1$s</string>
+    <string name="update_download">Скачать обновление</string>
+    <string name="update_downloading_progress">%1$s из %2$s</string>
+    <string name="update_preparing">Готовим загрузку…</string>
+    <string name="update_ready_body">Версия %1$s загружена и готова к установке. Android может запросить разрешение на установку из этого источника.</string>
+    <string name="update_install">Установить</string>
+    <string name="update_open_github">Открыть на GitHub</string>
+    <string name="update_up_to_date">У вас последняя версия</string>
+
     <!-- Просмотр файла -->
     <string name="file_share">Поделиться</string>
     <string name="file_open_in_browser">Открыть в браузере</string>

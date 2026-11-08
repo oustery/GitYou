@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,12 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -67,9 +70,13 @@ import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import com.gityou.app.BuildConfig
 import com.gityou.app.R
+import com.gityou.app.data.update.ApkInstaller
+import com.gityou.app.data.update.UpdateInfo
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.ui.components.EyebrowLabel
+import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.components.errorKeyRes
 import com.gityou.app.ui.theme.AccentPalette
 import com.gityou.app.ui.theme.Spacing
 import com.gityou.app.ui.theme.accentPreviewColor
@@ -82,9 +89,11 @@ import kotlinx.coroutines.withContext
 fun SettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
+    updateViewModel: UpdateViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
+    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -133,6 +142,38 @@ fun SettingsScreen(
                 }
             },
         )
+    }
+
+    // In-app update: transient results become snackbars, the rest is a dialog.
+    LaunchedEffect(updateState) {
+        when (val s = updateState) {
+            is UpdateUiState.UpToDate -> {
+                snackbarHostState.showSnackbar(context.getString(R.string.update_up_to_date))
+                updateViewModel.dismiss()
+            }
+            is UpdateUiState.Failed -> {
+                snackbarHostState.showSnackbar(context.getString(errorKeyRes(s.errorKey)))
+                updateViewModel.dismiss()
+            }
+            else -> Unit
+        }
+    }
+
+    when (val s = updateState) {
+        is UpdateUiState.Available,
+        is UpdateUiState.Downloading,
+        is UpdateUiState.Ready,
+        -> UpdateDialog(
+            state = s,
+            onDownload = updateViewModel::download,
+            onInstall = { file -> ApkInstaller.install(context, file) },
+            onOpenRelease = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+            },
+            onCancel = updateViewModel::cancelDownload,
+            onDismiss = updateViewModel::dismiss,
+        )
+        else -> Unit
     }
 
     Scaffold(
@@ -485,17 +526,40 @@ fun SettingsScreen(
                         )
                     }
                 }
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou/releases")),
-                        )
-                    },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = Spacing.sm),
+                        .padding(top = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Text(stringResource(R.string.settings_releases), maxLines = 1)
+                    Button(
+                        onClick = updateViewModel::check,
+                        enabled = updateState !is UpdateUiState.Checking,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Filled.SystemUpdateAlt, contentDescription = null)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text(
+                            stringResource(
+                                if (updateState is UpdateUiState.Checking) {
+                                    R.string.update_checking
+                                } else {
+                                    R.string.settings_check_updates
+                                },
+                            ),
+                            maxLines = 1,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou/releases")),
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.settings_releases), maxLines = 1)
+                    }
                 }
             }
             Spacer(Modifier.height(Spacing.xl))
@@ -611,4 +675,114 @@ private fun AccentSwatch(
             modifier = Modifier.padding(top = Spacing.xs),
         )
     }
+}
+
+/**
+ * In-app update dialog covering the whole flow: release notes (markdown),
+ * download progress and the hand-off to the system installer.
+ */
+@Composable
+private fun UpdateDialog(
+    state: UpdateUiState,
+    onDownload: (UpdateInfo) -> Unit,
+    onInstall: (java.io.File) -> Unit,
+    onOpenRelease: (String) -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val update = when (state) {
+        is UpdateUiState.Available -> state.update
+        is UpdateUiState.Downloading -> state.update
+        is UpdateUiState.Ready -> state.update
+        else -> return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.update_available_title)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 360.dp),
+            ) {
+                Text(
+                    stringResource(R.string.update_dialog_version, update.displayVersion),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                update.release.body?.takeIf { it.isNotBlank() }?.let { body ->
+                    MarkdownText(
+                        markdown = body,
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = Spacing.sm),
+                    )
+                }
+                when (state) {
+                    is UpdateUiState.Downloading -> {
+                        LinearProgressIndicator(
+                            progress = {
+                                if (state.totalBytes > 0) {
+                                    (state.downloadedBytes.toFloat() / state.totalBytes).coerceIn(0f, 1f)
+                                } else {
+                                    0f
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = Spacing.md),
+                        )
+                        Text(
+                            if (state.totalBytes > 0) {
+                                stringResource(
+                                    R.string.update_downloading_progress,
+                                    Formatters.bytes(state.downloadedBytes),
+                                    Formatters.bytes(state.totalBytes),
+                                )
+                            } else {
+                                stringResource(R.string.update_preparing)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
+                    is UpdateUiState.Ready -> Text(
+                        stringResource(R.string.update_ready_body, update.displayVersion),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = Spacing.md),
+                    )
+                    else -> Unit
+                }
+            }
+        },
+        confirmButton = {
+            when (state) {
+                is UpdateUiState.Available -> {
+                    val asset = state.update.asset
+                    if (asset == null) {
+                        // Release ships no APK artifact: the download page is the only path.
+                        TextButton(onClick = { onOpenRelease(update.release.htmlUrl ?: "https://github.com/oustery/GitYou/releases") }) {
+                            Text(stringResource(R.string.update_open_github), maxLines = 1)
+                        }
+                    } else {
+                        TextButton(onClick = { onDownload(state.update) }) {
+                            Text(stringResource(R.string.update_download), maxLines = 1)
+                        }
+                    }
+                }
+                is UpdateUiState.Downloading -> TextButton(onClick = onCancel) {
+                    Text(stringResource(R.string.action_cancel), maxLines = 1)
+                }
+                is UpdateUiState.Ready -> Button(onClick = { onInstall(state.file) }) {
+                    Text(stringResource(R.string.update_install), maxLines = 1)
+                }
+                else -> Unit
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close), maxLines = 1)
+            }
+        },
+    )
 }
