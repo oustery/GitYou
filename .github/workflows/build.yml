@@ -20,6 +20,11 @@ jobs:
     # flush its logs instead of burning the runner for 6 hours.
     timeout-minutes: 45
 
+    # Publishing a tag and a GitHub release needs contents:write; everything
+    # else the token touches stays read-only.
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +37,27 @@ jobs:
 
       - name: Set up Gradle with caching
         uses: gradle/actions/setup-gradle@v4
+
+      # Every build gets a unique, strictly increasing version derived from the
+      # base version in gradle.properties: versionName "<base>.<run number>"
+      # (e.g. 1.2.0.21) and versionCode = run number. The release step
+      # below publishes the same numbers as tag v<versionName>, so an installed
+      # CI build always knows exactly which releases are newer than itself and
+      # the in-app updater never re-offers the build that is already installed.
+      - name: Compute build version
+        run: |
+          BASE="$(grep -oP '^gityouBaseVersionName=\K.*' gradle.properties | head -1 | tr -d '[:space:]')"
+          if [ -z "$BASE" ]; then
+            echo "::error::Could not read gityouBaseVersionName from gradle.properties"
+            exit 1
+          fi
+          VERSION_NAME="${BASE}.${GITHUB_RUN_NUMBER}"
+          {
+            echo "GITYOU_VERSION_NAME=${VERSION_NAME}"
+            echo "GITYOU_VERSION_CODE=${GITHUB_RUN_NUMBER}"
+            echo "RELEASE_TAG=v${VERSION_NAME}"
+          } >> "$GITHUB_ENV"
+          echo "This build: versionName=${VERSION_NAME} versionCode=${GITHUB_RUN_NUMBER} -> tag v${VERSION_NAME}"
 
       - name: Static analysis (detekt)
         run: ./gradlew --no-daemon detekt
@@ -60,7 +86,7 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Assemble per-ABI APKs (debug + release)
-        run: ./gradlew --no-daemon assembleDebug assembleRelease
+        run: ./gradlew --no-daemon assembleDebug assembleRelease -PGITYOU_VERSION_NAME="$GITYOU_VERSION_NAME" -PGITYOU_VERSION_CODE="$GITYOU_VERSION_CODE"
 
       - name: Summarize artifacts
         if: always()
@@ -86,3 +112,32 @@ jobs:
           name: GitYou-release-apks
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # Publish every successful build of main (and every manual run) as a
+      # GitHub release: tag v<versionName>.<run number> at the built commit,
+      # with the four signed per-ABI APKs attached. This is the feed the
+      # in-app updater reads (repos/oustery/GitYou/releases/latest), so each
+      # new run becomes the "latest" release and older installed builds see
+      # it as an update. PR runs only build and upload artifacts — they never
+      # publish anything.
+      - name: Create tag and release with APKs
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Re-running the same workflow run reuses its run number, so the tag
+          # may already exist — replace the stale release in that case.
+          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists (re-run) — replacing it."
+            gh release delete "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+          gh release create "$RELEASE_TAG" \
+            -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "GitYou ${RELEASE_TAG#v}" \
+            --generate-notes \
+            --latest \
+            app/build/outputs/apk/release/*.apk
+          echo "Published release **$RELEASE_TAG**" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL: $(gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --json url -q .url)" >> "$GITHUB_STEP_SUMMARY"

@@ -10,6 +10,11 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// Base version, defined in gradle.properties (single source of truth).
+// CI overrides the effective version per build (see .github/workflows/build.yml).
+val baseVersionName = project.property("gityouBaseVersionName").toString().trim()
+val baseVersionCode = project.property("gityouBaseVersionCode").toString().trim().toInt()
+
 android {
     namespace = "com.gityou.app"
     compileSdk = 36
@@ -18,8 +23,12 @@ android {
         applicationId = "com.gityou.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        // CI overrides both so an APK built there reports exactly the version
+        // of its release tag, e.g. "1.2.0.21" for tag v1.2.0.21; the in-app
+        // updater then only offers releases that are strictly newer than the
+        // installed one. Local builds keep the base version.
+        versionCode = project.findProperty("GITYOU_VERSION_CODE")?.toString()?.trim()?.toIntOrNull() ?: baseVersionCode
+        versionName = project.findProperty("GITYOU_VERSION_NAME")?.toString()?.trim()?.takeIf { it.isNotEmpty() } ?: baseVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
