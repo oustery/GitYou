@@ -2,6 +2,9 @@ package com.gityou.app.data.repo
 
 import com.gityou.app.data.remote.GitHubApi
 import com.gityou.app.data.remote.dto.Branch
+import com.gityou.app.data.remote.dto.CommitDetail
+import com.gityou.app.data.remote.dto.CommitFile
+import com.gityou.app.data.remote.dto.CommitListItem
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.Page
@@ -96,4 +99,13 @@ class ReposRepository @Inject constructor(
     }
 
     suspend fun fork(owner: String, name: String): Repo = api.fork(owner, name)
+
+    suspend fun commits(owner: String, name: String, ref: String?, page: Int): Page<CommitListItem> =
+        LinkHeaderParser.pageFromResponse(api.commits(owner, name, ref = ref, page = page))
+
+    suspend fun commit(owner: String, name: String, sha: String): CommitDetail =
+        api.commit(owner, name, sha)
+
+    suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> =
+        api.pullFiles(owner, name, number)
 }

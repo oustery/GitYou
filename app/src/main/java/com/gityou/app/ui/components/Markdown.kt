@@ -153,12 +153,18 @@ val LocalRenderMarkdown = staticCompositionLocalOf { true }
  * Theme-aware markdown renderer for issue bodies, comments and READMEs.
  * HTML leaks (`<details>`, `<summary>`) are normalized by
  * [com.gityou.app.data.util.MarkdownPreprocessor] before parsing.
+ *
+ * Pass `preprocess = false` for machine-written documents (raw code files
+ * wrapped in a fence): the normalizer rewrites HTML-looking sequences that
+ * would corrupt source code.
  */
 @Composable
 fun MarkdownText(
     markdown: String,
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    preprocess: Boolean = true,
+    selectable: Boolean = false,
 ) {
     // The "Render Markdown" setting falls back to plain text everywhere.
     if (!LocalRenderMarkdown.current) {
@@ -174,8 +180,8 @@ fun MarkdownText(
     val colors = MaterialTheme.colorScheme
     val density = LocalDensity.current
     val markwon = remember(factory, colors, context) { factory.create(context, colors) }
-    val prepared = remember(markdown) {
-        MarkdownPreprocessor.prepare(markdown)
+    val prepared = remember(markdown, preprocess) {
+        if (preprocess) MarkdownPreprocessor.prepare(markdown) else markdown
     }
     val parsed = remember(markwon, prepared) { markwon.toMarkdown(prepared) }
     // Density carries both the system and the in-app text scale settings.
@@ -203,6 +209,7 @@ fun MarkdownText(
             textView.setTextColor(colors.onSurface.toArgb())
             textView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, bodySizePx)
             textView.setLineSpacing(0f, 1.25f)
+            textView.setTextIsSelectable(selectable)
         },
         modifier = modifier.fillMaxWidth(),
     )

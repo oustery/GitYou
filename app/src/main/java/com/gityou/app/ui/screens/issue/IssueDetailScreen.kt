@@ -20,11 +20,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddReaction
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -33,18 +40,24 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,11 +81,29 @@ fun IssueDetailScreen(
     number: Int,
     isPull: Boolean,
     onBack: () -> Unit,
+    onOpenFiles: () -> Unit = {},
     viewModel: IssueDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val commentError by viewModel.commentError.collectAsStateWithLifecycle()
     val commentSent by viewModel.commentSent.collectAsStateWithLifecycle()
+    val managementMessage by viewModel.managementMessage.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Dialog control: at most one is visible at a time.
+    var showLabelPicker by rememberSaveable { mutableStateOf(false) }
+    var editingComment by remember { mutableStateOf<Comment?>(null) }
+    var deletingComment by remember { mutableStateOf<Comment?>(null) }
+    var reviewEvent by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(managementMessage) {
+        managementMessage?.let {
+            snackbarHostState.showSnackbar(context.getString(it))
+            viewModel.consumeManagementMessage()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,8 +125,28 @@ fun IssueDetailScreen(
                         )
                     }
                 },
+                actions = {
+                    if (isPull) {
+                        IconButton(onClick = onOpenFiles) {
+                            Icon(
+                                Icons.Filled.Description,
+                                contentDescription = stringResource(R.string.pull_files_action, 0),
+                            )
+                        }
+                    }
+                    ManagementMenu(
+                        viewModel = viewModel,
+                        isPull = isPull,
+                        onEditLabels = {
+                            viewModel.loadAvailableLabels()
+                            showLabelPicker = true
+                        },
+                        onReview = { event -> reviewEvent = event },
+                    )
+                },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         StateScreen(state = state, onRetry = viewModel::load) { screenState ->
             // The draft survives every recomposition and is wiped only after
@@ -118,6 +169,9 @@ fun IssueDetailScreen(
                     contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
                 ) {
                     item(key = "header") { IssueHeader(screenState.detail) }
+                    if (isPull && screenState.reviews.isNotEmpty()) {
+                        item(key = "reviews") { ReviewsSummaryCard(screenState.reviews) }
+                    }
                     item(key = "comments-label") {
                         EyebrowLabel(
                             stringResource(R.string.issue_comments_section, screenState.detail.commentCount),
@@ -143,7 +197,12 @@ fun IssueDetailScreen(
                             if (comment.id != 0L) comment.id else "comment-$index"
                         },
                     ) { _, comment ->
-                        CommentCard(comment)
+                        CommentCard(
+                            comment = comment,
+                            onEdit = { editingComment = comment },
+                            onDelete = { deletingComment = comment },
+                            onReact = { content -> viewModel.reactToComment(comment.id, content) },
+                        )
                         Spacer(Modifier.height(Spacing.xs))
                     }
                     if (!screenState.commentsLoading && screenState.detail.comments.isEmpty()) {
@@ -199,6 +258,122 @@ fun IssueDetailScreen(
                         }
                     }
                 }
+            }
+
+            if (showLabelPicker) {
+                LabelPickerDialog(
+                    available = screenState.availableLabels,
+                    selected = screenState.detail.labels,
+                    busy = screenState.busy,
+                    onConfirm = { selection ->
+                        showLabelPicker = false
+                        viewModel.applyLabelSelection(selection)
+                    },
+                    onDismiss = { showLabelPicker = false },
+                )
+            }
+            editingComment?.let { comment ->
+                EditCommentDialog(
+                    initial = comment.body.orEmpty(),
+                    busy = screenState.busy,
+                    onConfirm = { body ->
+                        editingComment = null
+                        viewModel.editComment(comment.id, body)
+                    },
+                    onDismiss = { editingComment = null },
+                )
+            }
+            deletingComment?.let { comment ->
+                AlertDialog(
+                    onDismissRequest = { deletingComment = null },
+                    title = { Text(stringResource(R.string.comment_delete_confirm)) },
+                    confirmButton = {
+                        TextButton(
+                            enabled = !screenState.busy,
+                            onClick = {
+                                deletingComment = null
+                                viewModel.deleteComment(comment.id)
+                            },
+                        ) { Text(stringResource(R.string.comment_delete)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { deletingComment = null }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    },
+                )
+            }
+            reviewEvent?.let { event ->
+                ReviewDialog(
+                    event = event,
+                    busy = screenState.busy,
+                    onConfirm = { body ->
+                        reviewEvent = null
+                        viewModel.submitReview(event, body)
+                    },
+                    onDismiss = { reviewEvent = null },
+                )
+            }
+        }
+    }
+}
+
+/** Top-bar overflow: state changes, label editing and pull-request reviews. */
+@Composable
+private fun ManagementMenu(
+    viewModel: IssueDetailViewModel,
+    isPull: Boolean,
+    onEditLabels: () -> Unit,
+    onReview: (String) -> Unit,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var expanded by remember { mutableStateOf(false) }
+    val detail = (state as? com.gityou.app.ui.components.UiState.Content)?.value?.detail
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.action_more))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.issue_edit_labels)) },
+                onClick = {
+                    expanded = false
+                    onEditLabels()
+                },
+            )
+            if (detail != null) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (detail.state == "open") {
+                                stringResource(R.string.issue_action_close)
+                            } else {
+                                stringResource(R.string.issue_action_reopen)
+                            },
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        viewModel.toggleIssueState()
+                    },
+                )
+            }
+            if (isPull && detail?.state == "open" && !detail.merged) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.review_approve)) },
+                    onClick = {
+                        expanded = false
+                        onReview("APPROVE")
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.review_request_changes)) },
+                    onClick = {
+                        expanded = false
+                        onReview("REQUEST_CHANGES")
+                    },
+                )
             }
         }
     }
@@ -327,8 +502,196 @@ private fun IssueHeader(detail: IssueDetailUi) {
     }
 }
 
+/** Latest review verdict per reviewer, as compact chips under the body. */
 @Composable
-private fun CommentCard(comment: Comment) {
+private fun ReviewsSummaryCard(reviews: List<com.gityou.app.data.remote.dto.PrReview>) {
+    val latest = remember(reviews) {
+        reviews
+            .filter { it.state == "APPROVED" || it.state == "CHANGES_REQUESTED" }
+            .groupBy { it.user?.login.orEmpty() }
+            .mapNotNull { (_, group) -> group.maxByOrNull { it.submittedAt.orEmpty() } }
+    }
+    if (latest.isEmpty()) return
+    Column(modifier = Modifier.padding(bottom = Spacing.sm)) {
+        EyebrowLabel(stringResource(R.string.review_section))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            latest.forEach { review ->
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = if (review.state == "APPROVED") {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+                ) {
+                    Text(
+                        "${review.user?.login.orEmpty()} · " +
+                            stringResource(reviewStateLabel(review.state)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (review.state == "APPROVED") {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun reviewStateLabel(state: String?): Int = when (state) {
+    "APPROVED" -> R.string.review_state_APPROVED
+    "CHANGES_REQUESTED" -> R.string.review_state_CHANGES_REQUESTED
+    else -> R.string.review_state_COMMENTED
+}
+
+/** Multi-select dialog replacing the issue's label set on confirm. */
+@Composable
+private fun LabelPickerDialog(
+    available: List<com.gityou.app.data.remote.dto.Label>,
+    selected: List<String>,
+    busy: Boolean,
+    onConfirm: (List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val selection = remember(available, selected) { selected.toMutableStateList() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.issue_edit_labels)) },
+        text = {
+            if (available.isEmpty()) {
+                Text(stringResource(R.string.issue_labels_empty))
+            } else {
+                Column {
+                    available.forEach { label ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Checkbox(
+                                checked = label.name in selection,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        selection.add(label.name)
+                                    } else {
+                                        selection.remove(label.name)
+                                    }
+                                },
+                            )
+                            Text(
+                                label.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = Spacing.sm),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !busy, onClick = { onConfirm(selection.toList()) }) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun EditCommentDialog(
+    initial: String,
+    busy: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.comment_edit_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                minLines = 4,
+                maxLines = 10,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = !busy && text.isNotBlank(), onClick = { onConfirm(text) }) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun ReviewDialog(
+    event: String,
+    busy: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val title = if (event == "APPROVE") {
+        stringResource(R.string.review_approve)
+    } else {
+        stringResource(R.string.review_request_changes)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text(stringResource(R.string.review_body_hint)) },
+                minLines = 3,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = !busy, onClick = { onConfirm(text) }) { Text(title) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+private val ReactionEmoji = linkedMapOf(
+    "+1" to "👍",
+    "-1" to "👎",
+    "laugh" to "😄",
+    "hooray" to "🎉",
+    "confused" to "😕",
+    "heart" to "❤️",
+    "rocket" to "🚀",
+    "eyes" to "👀",
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CommentCard(
+    comment: Comment,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onReact: (String) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var reactionsExpanded by remember { mutableStateOf(false) }
+
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -354,11 +717,96 @@ private fun CommentCard(comment: Comment) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.action_more),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.comment_edit)) },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.comment_delete)) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            },
+                        )
+                    }
+                }
             }
             comment.body?.let {
                 Spacer(Modifier.height(Spacing.sm))
                 MarkdownText(markdown = it)
             }
+            Spacer(Modifier.height(Spacing.sm))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                val reactions = comment.reactions
+                if (reactions != null && reactions.totalCount > 0) {
+                    ReactionEmoji.forEach { (content, emoji) ->
+                        val count = reactionCount(reactions, content)
+                        if (count > 0) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            ) {
+                                Text(
+                                    "$emoji $count",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                Box {
+                    IconButton(onClick = { reactionsExpanded = true }) {
+                        Icon(
+                            Icons.Filled.AddReaction,
+                            contentDescription = stringResource(R.string.reaction_add),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = reactionsExpanded,
+                        onDismissRequest = { reactionsExpanded = false },
+                    ) {
+                        ReactionEmoji.forEach { (content, emoji) ->
+                            DropdownMenuItem(
+                                text = { Text(emoji) },
+                                onClick = {
+                                    reactionsExpanded = false
+                                    onReact(content)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+private fun reactionCount(reactions: com.gityou.app.data.remote.dto.ReactionsSummary, content: String): Int =
+    when (content) {
+        "+1" -> reactions.plusOne
+        "-1" -> reactions.minusOne
+        "laugh" -> reactions.laugh
+        "hooray" -> reactions.hooray
+        "confused" -> reactions.confused
+        "heart" -> reactions.heart
+        "rocket" -> reactions.rocket
+        "eyes" -> reactions.eyes
+        else -> 0
+    }

@@ -5,6 +5,7 @@
     <!-- Generic actions -->
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_more">More actions</string>
     <string name="action_retry">Retry</string>
     <string name="action_clear">Clear</string>
     <string name="action_refresh">Refresh</string>
@@ -245,4 +246,51 @@
 
     <!-- FAB -->
     <string name="fab_new_issue">New issue</string>
+
+    <!-- P0 batch: commits and diffs -->
+    <string name="commits_title">Commits</string>
+    <string name="diff_no_files_title">No file changes</string>
+    <string name="diff_no_files_body">This commit or pull request does not change any files.</string>
+    <string name="pull_files_action">Files changed (%1$d)</string>
+
+    <!-- P0 batch: issue management -->
+    <string name="issue_action_close">Close issue</string>
+    <string name="issue_action_reopen">Reopen issue</string>
+    <string name="issue_state_changed">State updated</string>
+    <string name="issue_edit_labels">Edit labels</string>
+    <string name="issue_labels_empty">No labels in this repository</string>
+    <string name="comment_edit">Edit</string>
+    <string name="comment_delete">Delete</string>
+    <string name="comment_delete_confirm">Delete this comment?</string>
+    <string name="comment_edit_title">Edit comment</string>
+    <string name="comment_updated">Comment updated</string>
+    <string name="comment_deleted">Comment deleted</string>
+
+    <!-- P0 batch: reviews and reactions -->
+    <string name="review_section">Reviews</string>
+    <string name="review_approve">Approve</string>
+    <string name="review_request_changes">Request changes</string>
+    <string name="review_body_hint">Review summary (optional)</string>
+    <string name="review_submitted">Review submitted</string>
+    <string name="review_state_APPROVED">approved</string>
+    <string name="review_state_CHANGES_REQUESTED">requested changes</string>
+    <string name="review_state_COMMENTED">commented</string>
+    <string name="reaction_add">Add reaction</string>
+
+    <!-- P0 batch: creation -->
+    <string name="new_repo_title">New repository</string>
+    <string name="new_repo_name">Repository name</string>
+    <string name="new_repo_description">Description (optional)</string>
+    <string name="new_repo_private">Private</string>
+    <string name="new_repo_autoinit">Initialize with README</string>
+    <string name="new_repo_submit">Create repository</string>
+    <string name="new_repo_created">Repository created</string>
+    <string name="new_gist_title">New gist</string>
+    <string name="new_gist_description">Description (optional)</string>
+    <string name="new_gist_filename">File name</string>
+    <string name="new_gist_content">Content</string>
+    <string name="new_gist_public">Public</string>
+    <string name="new_gist_submit">Create gist</string>
+    <string name="new_gist_created">Gist created — link copied</string>
+    <string name="error_name_required">Name is required</string>
 </resources>

@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Folder
@@ -82,16 +83,15 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.ContentItem
+import com.gityou.app.data.util.CodeLanguages
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.EmptyState
@@ -110,7 +110,6 @@ import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 private val tabTitles = listOf(
     R.string.repo_tab_about,
@@ -130,6 +129,7 @@ fun RepoScreen(
     onBack: () -> Unit,
     onOpenIssue: (Int, Boolean) -> Unit,
     onNewIssue: () -> Unit,
+    onOpenCommits: (String?) -> Unit,
     viewModel: RepoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -212,7 +212,7 @@ fun RepoScreen(
                     label = "repoTabContent",
                 ) { tab ->
                     when (tab) {
-                        0 -> AboutTab(ui, viewModel)
+                        0 -> AboutTab(ui, viewModel, onOpenCommits)
                         1 -> CodeTab(ui, viewModel)
                         2 -> IssuesTab(ui, viewModel, onOpenIssue)
                         else -> PullsTab(ui, viewModel, onOpenIssue)
@@ -302,27 +302,35 @@ fun RepoScreen(
                         }
                         Spacer(Modifier.height(Spacing.md))
                         val truncatedNote = stringResource(R.string.file_truncated, FILE_PREVIEW_MAX_LINES)
-                        val preview = remember(file.text, truncatedNote) {
-                            val lines = file.text.split('\n')
-                            val capped = lines.take(FILE_PREVIEW_MAX_LINES)
-                            buildString {
-                                capped.forEachIndexed { index, line ->
-                                    // Locale.ROOT: line numbers are canonical "1234",
-                                    // never "١٢٣٤" or "1 234" (F-025).
-                                    append(String.format(Locale.ROOT, "%4d │ ", index + 1))
-                                    append(line)
-                                    append('\n')
+                        val cappedLines = remember(file.text) { file.text.split('\n') }
+                        if (CodeLanguages.isMarkdown(file.name)) {
+                            // A README-like file renders as formatted markdown.
+                            MarkdownText(
+                                markdown = cappedLines.take(FILE_PREVIEW_MAX_LINES).joinToString("\n") +
+                                    if (cappedLines.size > FILE_PREVIEW_MAX_LINES) "\n\n$truncatedNote" else "",
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .heightIn(max = 480.dp)
+                                    .verticalScroll(rememberScrollState()),
+                            )
+                        } else {
+                            // Code goes through the markdown pipeline as a fenced
+                            // block so Prism syntax highlighting is reused; the
+                            // preprocessor is bypassed to keep sources intact.
+                            val fenced = remember(file.name, cappedLines, truncatedNote) {
+                                val capped = cappedLines.take(FILE_PREVIEW_MAX_LINES).joinToString("\n")
+                                val suffix = if (cappedLines.size > FILE_PREVIEW_MAX_LINES) {
+                                    "\n\n$truncatedNote"
+                                } else {
+                                    ""
                                 }
-                                if (lines.size > FILE_PREVIEW_MAX_LINES) {
-                                    append(truncatedNote)
-                                }
+                                CodeLanguages.wrapInCodeFence(CodeLanguages.languageOf(file.name), capped) + suffix
                             }
-                        }
-                        SelectionContainer {
-                            Text(
-                                preview,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace,
+                            MarkdownText(
+                                markdown = fenced,
+                                preprocess = false,
+                                selectable = true,
+                                textStyle = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier
                                     .heightIn(max = 480.dp)
                                     .verticalScroll(rememberScrollState()),
@@ -343,6 +351,7 @@ fun RepoScreen(
 private fun AboutTab(
     ui: RepoDetailUi,
     viewModel: RepoViewModel,
+    onOpenCommits: (String?) -> Unit,
 ) {
     val context = LocalContext.current
     val haptics = appHaptics()
@@ -370,6 +379,14 @@ private fun AboutTab(
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.fork()
+                },
+            )
+            RoundedActionButton(
+                icon = Icons.Filled.History,
+                contentDescription = stringResource(R.string.commits_title),
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onOpenCommits(ui.activeBranch.takeIf { it.isNotBlank() })
                 },
             )
             RoundedActionButton(

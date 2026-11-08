@@ -11,6 +11,11 @@ object Route {
     const val REPO = "repo/{owner}/{name}"
     const val ISSUE = "issue/{owner}/{name}/{number}?isPull={isPull}"
     const val NEW_ISSUE = "newIssue/{owner}/{name}"
+    const val COMMITS = "commits/{owner}/{name}?ref={ref}"
+    const val COMMIT_DIFF = "commit/{owner}/{name}/{sha}"
+    const val PULL_DIFF = "pullFiles/{owner}/{name}/{number}?isPull={isPull}"
+    const val NEW_REPO = "newRepo"
+    const val NEW_GIST = "newGist"
 
     /** Routes that keep the bottom navigation bar visible. */
     val TOP_LEVEL = setOf(HOME, SEARCH, NOTIFICATIONS, PROFILE)
@@ -26,4 +31,11 @@ object Route {
         SEARCH, NOTIFICATIONS, PROFILE -> raw
         else -> HOME
     }
+
+    fun commits(owner: String, name: String, ref: String? = null) =
+        if (ref.isNullOrBlank()) "commits/$owner/$name" else "commits/$owner/$name?ref=$ref"
+
+    fun commitDiff(owner: String, name: String, sha: String) = "commit/$owner/$name/$sha"
+    fun pullDiff(owner: String, name: String, number: Int) =
+        "pullFiles/$owner/$name/$number?isPull=true"
 }

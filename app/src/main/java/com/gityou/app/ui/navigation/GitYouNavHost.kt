@@ -16,6 +16,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.navArgument
+import com.gityou.app.ui.screens.commits.CommitsScreen
+import com.gityou.app.ui.screens.commits.DiffScreen
+import com.gityou.app.ui.screens.creation.NewGistScreen
+import com.gityou.app.ui.screens.creation.NewRepoScreen
 import com.gityou.app.ui.screens.home.HomeScreen
 import com.gityou.app.ui.screens.issue.IssueDetailScreen
 import com.gityou.app.ui.screens.issue.NewIssueScreen
@@ -73,6 +77,7 @@ fun GitYouNavHost(
             HomeScreen(
                 onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
                 onOpenSettings = { navController.navigate(Route.SETTINGS) },
+                onCreateRepo = { navController.navigate(Route.NEW_REPO) },
             )
         }
         composable(Route.SEARCH) {
@@ -92,6 +97,7 @@ fun GitYouNavHost(
         composable(Route.PROFILE) {
             ProfileScreen(
                 onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
+                onCreateGist = { navController.navigate(Route.NEW_GIST) },
             )
         }
         composable(Route.SETTINGS) {
@@ -108,6 +114,9 @@ fun GitYouNavHost(
                     navController.navigate(Route.issue(owner, name, number, isPull))
                 },
                 onNewIssue = { navController.navigate(Route.newIssue(owner, name)) },
+                onOpenCommits = { ref ->
+                    navController.navigate(Route.commits(owner, name, ref))
+                },
             )
         }
         composable(
@@ -119,12 +128,15 @@ fun GitYouNavHost(
                 navArgument("isPull") { type = NavType.BoolType; defaultValue = false },
             ),
         ) { entry ->
+            val owner = entry.arguments?.getString("owner").orEmpty()
+            val name = entry.arguments?.getString("name").orEmpty()
             val number = entry.arguments?.getInt("number") ?: 0
             val isPull = entry.arguments?.getBoolean("isPull") ?: false
             IssueDetailScreen(
                 number = number,
                 isPull = isPull,
                 onBack = { navController.popBackStack() },
+                onOpenFiles = { navController.navigate(Route.pullDiff(owner, name, number)) },
             )
         }
         composable(Route.NEW_ISSUE) { entry ->
@@ -140,6 +152,61 @@ fun GitYouNavHost(
                     }
                 },
             )
+        }
+        composable(
+            Route.COMMITS,
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("ref") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            val owner = entry.arguments?.getString("owner").orEmpty()
+            val name = entry.arguments?.getString("name").orEmpty()
+            CommitsScreen(
+                owner = owner,
+                repoName = name,
+                onBack = { navController.popBackStack() },
+                onOpenCommit = { sha ->
+                    navController.navigate(Route.commitDiff(owner, name, sha))
+                },
+            )
+        }
+        composable(
+            Route.COMMIT_DIFF,
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("sha") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            DiffScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            Route.PULL_DIFF,
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("number") { type = NavType.IntType },
+                navArgument("isPull") { type = NavType.BoolType; defaultValue = false },
+            ),
+        ) {
+            DiffScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Route.NEW_REPO) {
+            NewRepoScreen(
+                onBack = { navController.popBackStack() },
+                onCreated = { fullName ->
+                    val owner = fullName.substringBefore('/')
+                    val name = fullName.substringAfter('/')
+                    navController.navigate(Route.repo(owner, name)) {
+                        popUpTo(Route.NEW_REPO) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Route.NEW_GIST) {
+            NewGistScreen(onBack = { navController.popBackStack() })
         }
     }
 }

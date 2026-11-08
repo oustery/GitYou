@@ -40,6 +40,21 @@ data class Comment(
     @SerialName("body") val body: String? = null,
     @SerialName("html_url") val htmlUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("reactions") val reactions: ReactionsSummary? = null,
+)
+
+/** Aggregated reaction counters that GitHub embeds into issue bodies and comments. */
+@Serializable
+data class ReactionsSummary(
+    @SerialName("total_count") val totalCount: Int = 0,
+    @SerialName("+1") val plusOne: Int = 0,
+    @SerialName("-1") val minusOne: Int = 0,
+    @SerialName("laugh") val laugh: Int = 0,
+    @SerialName("hooray") val hooray: Int = 0,
+    @SerialName("confused") val confused: Int = 0,
+    @SerialName("heart") val heart: Int = 0,
+    @SerialName("rocket") val rocket: Int = 0,
+    @SerialName("eyes") val eyes: Int = 0,
 )
 
 @Serializable
@@ -50,6 +65,24 @@ data class CreateIssueRequest(
 
 @Serializable
 data class CreateCommentRequest(
+    @SerialName("body") val body: String,
+)
+
+/** Body for `PATCH /issues/{number}` — changing only the state. */
+@Serializable
+data class IssueStateRequest(
+    @SerialName("state") val state: String, // "open" | "closed"
+)
+
+/** Body for `PATCH /issues/{number}` — replacing the label set. */
+@Serializable
+data class IssueLabelsRequest(
+    @SerialName("labels") val labels: List<String>,
+)
+
+/** Body for `PATCH /issues/comments/{id}`. */
+@Serializable
+data class UpdateCommentRequest(
     @SerialName("body") val body: String,
 )
 

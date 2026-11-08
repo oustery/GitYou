@@ -5,7 +5,15 @@ import com.gityou.app.data.remote.dto.Comment
 import com.gityou.app.data.remote.dto.CreateCommentRequest
 import com.gityou.app.data.remote.dto.CreateIssueRequest
 import com.gityou.app.data.remote.dto.Issue
+import com.gityou.app.data.remote.dto.IssueLabelsRequest
+import com.gityou.app.data.remote.dto.IssueStateRequest
+import com.gityou.app.data.remote.dto.Label
+import com.gityou.app.data.remote.dto.PrReview
 import com.gityou.app.data.remote.dto.PullRequest
+import com.gityou.app.data.remote.dto.Reaction
+import com.gityou.app.data.remote.dto.ReactionRequest
+import com.gityou.app.data.remote.dto.ReviewRequest
+import com.gityou.app.data.remote.dto.UpdateCommentRequest
 import com.gityou.app.data.util.LinkHeaderParser
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -47,6 +55,47 @@ class IssuesRepository @Inject constructor(
 
     suspend fun addComment(owner: String, name: String, number: Int, body: String): Comment =
         api.addComment(owner, name, number, CreateCommentRequest(body))
+
+    // ---- Management: state, labels, comment editing -------------------------
+
+    suspend fun setIssueState(owner: String, name: String, number: Int, state: String): Issue =
+        api.updateIssueState(owner, name, number, IssueStateRequest(state))
+
+    suspend fun replaceIssueLabels(
+        owner: String,
+        name: String,
+        number: Int,
+        labels: List<String>,
+    ): List<Label> =
+        api.updateIssueLabels(owner, name, number, IssueLabelsRequest(labels)).labels
+
+    suspend fun editComment(id: Long, body: String): Comment =
+        api.updateComment(id, UpdateCommentRequest(body))
+
+    suspend fun deleteComment(id: Long) {
+        val response = api.deleteComment(id)
+        if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    suspend fun repoLabels(owner: String, name: String): List<Label> =
+        api.repoLabels(owner, name)
+
+    suspend fun addLabels(owner: String, name: String, number: Int, labels: List<String>): List<Label> =
+        api.addIssueLabels(owner, name, number, IssueLabelsRequest(labels))
+
+    suspend fun removeLabels(owner: String, name: String, number: Int, labels: List<String>): List<Label> =
+        api.removeIssueLabels(owner, name, number, IssueLabelsRequest(labels))
+
+    // ---- Reviews and reactions ----------------------------------------------
+
+    suspend fun reviews(owner: String, name: String, number: Int): List<PrReview> =
+        api.pullReviews(owner, name, number)
+
+    suspend fun submitReview(owner: String, name: String, number: Int, event: String, body: String?): PrReview =
+        api.submitReview(owner, name, number, ReviewRequest(event = event, body = body))
+
+    suspend fun react(commentId: Long, content: String): Reaction =
+        api.reactToComment(commentId, ReactionRequest(content))
 
     private companion object {
         const val MAX_COMMENT_PAGES = 100

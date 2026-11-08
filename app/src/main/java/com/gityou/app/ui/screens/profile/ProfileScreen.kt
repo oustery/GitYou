@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +54,7 @@ import com.gityou.app.ui.theme.Spacing
 @Composable
 fun ProfileScreen(
     onOpenRepo: (String, String) -> Unit,
+    onCreateGist: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -66,6 +68,12 @@ fun ProfileScreen(
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.nav_profile)) },
                 actions = {
+                    IconButton(onClick = onCreateGist) {
+                        Icon(
+                            Icons.Filled.Description,
+                            contentDescription = stringResource(R.string.new_gist_title),
+                        )
+                    }
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_refresh))
                     }
