@@ -1,7 +1,5 @@
 package com.gityou.app.ui.screens.settings
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import androidx.compose.foundation.border
@@ -75,6 +73,7 @@ import com.gityou.app.data.update.UpdateInfo
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
+import com.gityou.app.ui.components.openUrl
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.errorKeyRes
 import com.gityou.app.ui.theme.AccentPalette
@@ -167,9 +166,7 @@ fun SettingsScreen(
             state = s,
             onDownload = updateViewModel::download,
             onInstall = { file -> ApkInstaller.install(context, file) },
-            onOpenRelease = {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
-            },
+            onOpenRelease = { url -> openUrl(context, url) },
             onCancel = updateViewModel::cancelDownload,
             onDismiss = updateViewModel::dismiss,
         )
@@ -505,11 +502,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     Button(
-                        onClick = {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou")),
-                            )
-                        },
+                        onClick = { openUrl(context, "https://github.com/oustery/GitYou") },
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Filled.OpenInNew, contentDescription = null)
@@ -551,11 +544,7 @@ fun SettingsScreen(
                         )
                     }
                     OutlinedButton(
-                        onClick = {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/oustery/GitYou/releases")),
-                            )
-                        },
+                        onClick = { openUrl(context, "https://github.com/oustery/GitYou/releases") },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(stringResource(R.string.settings_releases), maxLines = 1)

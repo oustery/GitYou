@@ -2,6 +2,40 @@ package com.gityou.app.ui.navigation
 
 /** All navigation routes with typed builders. */
 object Route {
+
+    /**
+     * Percent-encodes a value destined for a route path/query slot. Git refs
+     * (branches, tags) legally contain URI-hostile characters — `#`, `&`,
+     * spaces — and an unencoded ref silently navigates to the wrong place:
+     * `Uri.parse` cuts a `#` off as a fragment and splits on `&` (N-001).
+     * Encodes per UTF-8 byte over the RFC 3986 unreserved set; kept pure-Kotlin
+     * (instead of android.net.Uri.encode) so it is directly unit-testable.
+     */
+    internal fun encodeArg(value: String): String {
+        val bytes = value.toByteArray(Charsets.UTF_8)
+        return buildString(bytes.size) {
+            for (b in bytes) {
+                val v = b.toInt() and 0xFF
+                if (v.isUnreserved()) {
+                    append(v.toChar())
+                } else {
+                    append('%')
+                    append(HEX[(v shr 4) and 0xF])
+                    append(HEX[v and 0xF])
+                }
+            }
+        }
+    }
+
+    /** RFC 3986 unreserved characters: kept literally, everything else is escaped. */
+    private fun Int.isUnreserved(): Boolean = when (this) {
+        in 'a'.code..'z'.code, in 'A'.code..'Z'.code, in '0'.code..'9'.code -> true
+        '-'.code, '.'.code, '_'.code, '~'.code -> true
+        else -> false
+    }
+
+    private const val HEX = "0123456789ABCDEF"
+
     const val HOME = "home"
     const val SEARCH = "search"
     const val NOTIFICATIONS = "notifications"
@@ -36,7 +70,7 @@ object Route {
     }
 
     fun commits(owner: String, name: String, ref: String? = null) =
-        if (ref.isNullOrBlank()) "commits/$owner/$name" else "commits/$owner/$name?ref=$ref"
+        if (ref.isNullOrBlank()) "commits/$owner/$name" else "commits/$owner/$name?ref=${encodeArg(ref)}"
 
     fun commitDiff(owner: String, name: String, sha: String) = "commit/$owner/$name/$sha"
     fun pullDiff(owner: String, name: String, number: Int) =

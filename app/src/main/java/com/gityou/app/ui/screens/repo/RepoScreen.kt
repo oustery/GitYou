@@ -110,6 +110,7 @@ import com.gityou.app.ui.components.RoundedActionButton
 import com.gityou.app.ui.components.StatBlock
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.appHaptics
+import com.gityou.app.ui.components.openUrl
 import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.errorMessageFor
 import com.gityou.app.ui.theme.Spacing
@@ -441,9 +442,7 @@ private fun AboutTab(
                 icon = Icons.Filled.OpenInNew,
                 contentDescription = stringResource(R.string.repo_open_in_browser),
                 onClick = {
-                    ui.repo.htmlUrl?.let { url ->
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }
+                    ui.repo.htmlUrl?.let { url -> openUrl(context, url) }
                 },
             )
         }

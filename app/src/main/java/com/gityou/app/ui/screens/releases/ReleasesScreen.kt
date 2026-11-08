@@ -1,7 +1,5 @@
 package com.gityou.app.ui.screens.releases
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -51,6 +49,7 @@ import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.components.openUrl
 import com.gityou.app.ui.theme.Spacing
 
 /** Releases (changelog + assets) and tags of one repository. */
@@ -281,9 +280,7 @@ private fun ReleaseCard(release: Release) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                asset.downloadUrl?.let { url ->
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                }
+                                asset.downloadUrl?.let { url -> openUrl(context, url) }
                             }
                             .padding(vertical = Spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,

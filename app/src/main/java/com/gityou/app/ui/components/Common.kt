@@ -1,5 +1,9 @@
 package com.gityou.app.ui.components
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +43,20 @@ sealed interface UiState<out T> {
     data object Loading : UiState<Nothing>
     data class Error(val errorKey: String) : UiState<Nothing>
     data class Content<T>(val value: T) : UiState<T>
+}
+
+/**
+ * Opens an external URL and never crashes the app: devices without a web
+ * handler (Android TV, bare emulators) throw ActivityNotFoundException from
+ * plain `startActivity(ACTION_VIEW)` (N-003). Same policy as ApkInstaller.
+ */
+fun openUrl(context: Context, url: String?) {
+    if (url.isNullOrBlank()) return
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: ActivityNotFoundException) {
+        // No browser on this device: nothing sensible to route to.
+    }
 }
 
 /** Single key → resource mapping; [errorMessageFor] and snackbars both use it. */

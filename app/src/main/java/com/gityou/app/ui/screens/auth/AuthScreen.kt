@@ -1,7 +1,5 @@
 package com.gityou.app.ui.screens.auth
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gityou.app.R
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.ui.components.errorMessageFor
+import com.gityou.app.ui.components.openUrl
 import com.gityou.app.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -175,9 +174,7 @@ fun AuthScreen(
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                             FilledTonalButton(onClick = {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse(deviceFlow.verificationUri)),
-                                )
+                                openUrl(context, deviceFlow.verificationUri)
                             }) {
                                 Icon(Icons.Filled.OpenInNew, contentDescription = null)
                                 Spacer(Modifier.width(Spacing.sm))

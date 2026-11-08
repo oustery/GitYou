@@ -50,7 +50,9 @@ class UpdateViewModel @Inject constructor(
 
     /** Compares the running version against the newest GitHub release. */
     fun check() {
-        if (_state.value is UpdateUiState.Checking) return
+        // Checking: guard against double taps. Downloading: a stray check() must
+        // not clobber the in-flight download state (N-004).
+        if (_state.value is UpdateUiState.Checking || _state.value is UpdateUiState.Downloading) return
         viewModelScope.launch {
             _state.value = UpdateUiState.Checking
             _state.value = repository.checkForUpdate(BuildConfig.VERSION_NAME).fold(

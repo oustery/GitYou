@@ -35,6 +35,9 @@ class NewRepoViewModel @Inject constructor(
 
     fun submit(onCreated: (String) -> Unit) {
         val current = _ui.value
+        // Double-submit guard: two rapid taps both read submitting=false
+        // before the recomposition disables the button — guard in the VM.
+        if (current.submitting) return
         val name = current.name.trim()
         if (name.isEmpty()) {
             _ui.value = current.copy(nameMissing = true)

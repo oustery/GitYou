@@ -53,7 +53,49 @@ object UpdateVersions {
         a == b -> 0
         a.isEmpty() -> 1 // a is the plain release, b is a prerelease
         b.isEmpty() -> -1
-        else -> a.compareTo(b)
+        else -> naturalCompare(a, b)
+    }
+
+    /**
+     * Natural (digit-aware) order for prerelease suffixes: digit runs compare
+     * numerically, so "rc10" outranks "rc9" the way every human — and semver —
+     * expects; plain lexicographic ordering would put "rc10" before "rc9"
+     * (N-002) and the user would never be offered the fix.
+     */
+    private fun naturalCompare(a: String, b: String): Int {
+        var i = 0
+        var j = 0
+        while (i < a.length && j < b.length) {
+            val ca = a[i]
+            val cb = b[j]
+            if (ca.isDigit() && cb.isDigit()) {
+                val digitCompare = compareDigitRuns(a, i, b, j)
+                if (digitCompare != 0) return digitCompare
+                i = digitRunEnd(a, i)
+                j = digitRunEnd(b, j)
+            } else {
+                if (ca != cb) return ca.compareTo(cb)
+                i++
+                j++
+            }
+        }
+        return (a.length - i).compareTo(b.length - j)
+    }
+
+    /** Compares the digit runs starting at [ai] in [a] and [bj] in [b] numerically. */
+    private fun compareDigitRuns(a: String, ai: Int, b: String, bj: Int): Int {
+        val runA = a.substring(ai, digitRunEnd(a, ai)).trimStart('0')
+        val runB = b.substring(bj, digitRunEnd(b, bj)).trimStart('0')
+        // Leading zeros stripped so "007" == "7"; longer means bigger.
+        return runA.length.compareTo(runB.length).takeIf { it != 0 }
+            ?: runA.compareTo(runB)
+    }
+
+    /** Index right after the run of digits starting at [start]. */
+    private fun digitRunEnd(s: String, start: Int): Int {
+        var end = start
+        while (end < s.length && s[end].isDigit()) end++
+        return end
     }
 }
 

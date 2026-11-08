@@ -46,9 +46,23 @@ class UpdateVersionsTest {
     }
 
     @Test
-    fun `prerelease suffixes compare lexically`() {
+    fun `prerelease suffixes compare in natural order`() {
         assertTrue(UpdateVersions.isNewer("1.3.0-rc1", "1.3.0-rc2"))
         assertFalse(UpdateVersions.isNewer("1.3.0-beta", "1.3.0-alpha"))
+    }
+
+    @Test
+    fun `digit runs compare numerically, not lexically`() {
+        // Lexicographic order would put "rc10" BEFORE "rc9" (N-002) and a user
+        // on rc9 would never be offered rc10.
+        assertTrue(UpdateVersions.isNewer("1.3.0-rc9", "1.3.0-rc10"))
+        assertFalse(UpdateVersions.isNewer("1.3.0-rc10", "1.3.0-rc9"))
+        // Dotted semver prerelease identifiers behave the same way.
+        assertTrue(UpdateVersions.isNewer("1.3.0-rc.9", "1.3.0-rc.10"))
+        // Leading zeros do not confuse the numeric run.
+        assertEquals(0, UpdateVersions.compare("1.3.0-rc07", "1.3.0-rc7"))
+        // Digit runs inside a word still compare numerically.
+        assertTrue(UpdateVersions.isNewer("1.3.0-build2", "1.3.0-build11"))
     }
 
     @Test
