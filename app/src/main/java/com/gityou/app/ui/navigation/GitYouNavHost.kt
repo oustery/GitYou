@@ -25,9 +25,12 @@ import com.gityou.app.ui.screens.issue.IssueDetailScreen
 import com.gityou.app.ui.screens.issue.NewIssueScreen
 import com.gityou.app.ui.screens.notifications.NotificationsScreen
 import com.gityou.app.ui.screens.profile.ProfileScreen
+import com.gityou.app.ui.screens.releases.ReleasesScreen
+import com.gityou.app.ui.screens.repo.RepoPeopleScreen
 import com.gityou.app.ui.screens.repo.RepoScreen
 import com.gityou.app.ui.screens.search.SearchScreen
 import com.gityou.app.ui.screens.settings.SettingsScreen
+import com.gityou.app.ui.screens.user.UserScreen
 
 fun NavHostController.navigateTopLevel(route: String) {
     navigate(route) {
@@ -83,6 +86,10 @@ fun GitYouNavHost(
         composable(Route.SEARCH) {
             SearchScreen(
                 onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
+                onOpenIssue = { owner, name, number, isPull ->
+                    navController.navigate(Route.issue(owner, name, number, isPull))
+                },
             )
         }
         composable(Route.NOTIFICATIONS) {
@@ -117,6 +124,9 @@ fun GitYouNavHost(
                 onOpenCommits = { ref ->
                     navController.navigate(Route.commits(owner, name, ref))
                 },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
+                onOpenReleases = { navController.navigate(Route.releases(owner, name)) },
+                onOpenRepoPeople = { kind -> navController.navigate(Route.repoPeople(owner, name, kind)) },
             )
         }
         composable(
@@ -137,6 +147,7 @@ fun GitYouNavHost(
                 isPull = isPull,
                 onBack = { navController.popBackStack() },
                 onOpenFiles = { navController.navigate(Route.pullDiff(owner, name, number)) },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
             )
         }
         composable(Route.NEW_ISSUE) { entry ->
@@ -170,6 +181,7 @@ fun GitYouNavHost(
                 onOpenCommit = { sha ->
                     navController.navigate(Route.commitDiff(owner, name, sha))
                 },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
             )
         }
         composable(
@@ -207,6 +219,44 @@ fun GitYouNavHost(
         }
         composable(Route.NEW_GIST) {
             NewGistScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            Route.USER,
+            arguments = listOf(navArgument("login") { type = NavType.StringType }),
+        ) {
+            UserScreen(
+                onBack = { navController.popBackStack() },
+                onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
+            )
+        }
+        composable(
+            Route.RELEASES,
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+            ),
+        ) { entry ->
+            val owner = entry.arguments?.getString("owner").orEmpty()
+            val name = entry.arguments?.getString("name").orEmpty()
+            ReleasesScreen(
+                onBack = { navController.popBackStack() },
+                onOpenCommits = { ref -> navController.navigate(Route.commits(owner, name, ref)) },
+            )
+        }
+        composable(
+            Route.REPO_PEOPLE,
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("kind") { type = NavType.StringType; defaultValue = "stargazers" },
+            ),
+        ) {
+            RepoPeopleScreen(
+                onBack = { navController.popBackStack() },
+                onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
+                onOpenUser = { login -> navController.navigate(Route.user(login)) },
+            )
         }
     }
 }

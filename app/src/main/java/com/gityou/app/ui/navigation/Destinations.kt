@@ -16,6 +16,9 @@ object Route {
     const val PULL_DIFF = "pullFiles/{owner}/{name}/{number}?isPull={isPull}"
     const val NEW_REPO = "newRepo"
     const val NEW_GIST = "newGist"
+    const val USER = "user/{login}"
+    const val RELEASES = "releases/{owner}/{name}"
+    const val REPO_PEOPLE = "repoPeople/{owner}/{name}?kind={kind}"
 
     /** Routes that keep the bottom navigation bar visible. */
     val TOP_LEVEL = setOf(HOME, SEARCH, NOTIFICATIONS, PROFILE)
@@ -38,4 +41,11 @@ object Route {
     fun commitDiff(owner: String, name: String, sha: String) = "commit/$owner/$name/$sha"
     fun pullDiff(owner: String, name: String, number: Int) =
         "pullFiles/$owner/$name/$number?isPull=true"
+
+    fun user(login: String) = "user/$login"
+    fun releases(owner: String, name: String) = "releases/$owner/$name"
+
+    /** [kind] is "stargazers" or "forks" (see RepoPeopleKind). */
+    fun repoPeople(owner: String, name: String, kind: String) =
+        "repoPeople/$owner/$name?kind=$kind"
 }

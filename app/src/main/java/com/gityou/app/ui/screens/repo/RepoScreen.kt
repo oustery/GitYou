@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Folder
@@ -79,6 +81,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -89,6 +92,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.util.CodeLanguages
@@ -130,6 +134,9 @@ fun RepoScreen(
     onOpenIssue: (Int, Boolean) -> Unit,
     onNewIssue: () -> Unit,
     onOpenCommits: (String?) -> Unit,
+    onOpenUser: (String) -> Unit = {},
+    onOpenReleases: () -> Unit = {},
+    onOpenRepoPeople: (String) -> Unit = {},
     viewModel: RepoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -212,7 +219,14 @@ fun RepoScreen(
                     label = "repoTabContent",
                 ) { tab ->
                     when (tab) {
-                        0 -> AboutTab(ui, viewModel, onOpenCommits)
+                        0 -> AboutTab(
+                            ui = ui,
+                            viewModel = viewModel,
+                            onOpenCommits = onOpenCommits,
+                            onOpenUser = onOpenUser,
+                            onOpenReleases = onOpenReleases,
+                            onOpenRepoPeople = onOpenRepoPeople,
+                        )
                         1 -> CodeTab(ui, viewModel)
                         2 -> IssuesTab(ui, viewModel, onOpenIssue)
                         else -> PullsTab(ui, viewModel, onOpenIssue)
@@ -352,6 +366,9 @@ private fun AboutTab(
     ui: RepoDetailUi,
     viewModel: RepoViewModel,
     onOpenCommits: (String?) -> Unit,
+    onOpenUser: (String) -> Unit,
+    onOpenReleases: () -> Unit,
+    onOpenRepoPeople: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val haptics = appHaptics()
@@ -362,6 +379,29 @@ private fun AboutTab(
             .verticalScroll(rememberScrollState())
             .padding(Spacing.lg),
     ) {
+        // Owner row: any login in the app is a doorway to the user profile.
+        ui.repo.owner?.login?.let { ownerLogin ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable { onOpenUser(ownerLogin) }
+                    .padding(vertical = Spacing.sm),
+            ) {
+                AsyncImage(
+                    model = ui.repo.owner?.avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape),
+                )
+                Spacer(Modifier.width(Spacing.sm))
+                Text(ownerLogin, style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(Spacing.md))
+        }
+
         ui.repo.description?.takeIf { it.isNotBlank() }?.let {
             Text(it, style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(Spacing.lg))
@@ -390,6 +430,14 @@ private fun AboutTab(
                 },
             )
             RoundedActionButton(
+                icon = Icons.Filled.NewReleases,
+                contentDescription = stringResource(R.string.releases_title),
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onOpenReleases()
+                },
+            )
+            RoundedActionButton(
                 icon = Icons.Filled.OpenInNew,
                 contentDescription = stringResource(R.string.repo_open_in_browser),
                 onClick = {
@@ -402,20 +450,42 @@ private fun AboutTab(
 
         Spacer(Modifier.height(Spacing.lg))
 
+        // Stars and forks open their people lists; issues stay informational
+        // because the Issues tab already lists them.
         Row(modifier = Modifier.fillMaxWidth()) {
-            StatBlock(
-                icon = Icons.Filled.Star,
-                value = Formatters.count(ui.repo.stargazersCount),
-                label = stringResource(R.string.repo_stat_stars),
-                modifier = Modifier.weight(1f),
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenRepoPeople("stargazers")
+                    },
+            ) {
+                StatBlock(
+                    icon = Icons.Filled.Star,
+                    value = Formatters.count(ui.repo.stargazersCount),
+                    label = stringResource(R.string.repo_stat_stars),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Spacer(Modifier.width(Spacing.md))
-            StatBlock(
-                icon = Icons.Filled.CallSplit,
-                value = Formatters.count(ui.repo.forksCount),
-                label = stringResource(R.string.repo_stat_forks),
-                modifier = Modifier.weight(1f),
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenRepoPeople("forks")
+                    },
+            ) {
+                StatBlock(
+                    icon = Icons.Filled.CallSplit,
+                    value = Formatters.count(ui.repo.forksCount),
+                    label = stringResource(R.string.repo_stat_forks),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Spacer(Modifier.width(Spacing.md))
             StatBlock(
                 icon = Icons.Filled.BugReport,

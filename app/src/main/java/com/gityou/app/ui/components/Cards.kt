@@ -41,6 +41,7 @@ import com.gityou.app.R
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Repo
+import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.util.Formatters
 import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.theme.Spacing
@@ -290,6 +291,56 @@ fun PullRow(
         onClick = onClick,
         modifier = modifier,
     )
+}
+
+/** Compact user row: avatar, login and (optional) display name or bio. */
+@Composable
+fun UserRow(
+    user: User,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AsyncImage(
+                model = user.avatarUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape),
+            )
+            Spacer(Modifier.width(Spacing.lg))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    user.login,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val sub = subtitle ?: user.name
+                sub?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** Stat block for the repository overview (stars / forks / issues). */

@@ -9,8 +9,12 @@ import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.Page
 import com.gityou.app.data.remote.dto.PullRequest
+import com.gityou.app.data.remote.dto.Release
 import com.gityou.app.data.remote.dto.Repo
+import com.gityou.app.data.remote.dto.Tag
+import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.util.LinkHeaderParser
+import com.gityou.app.data.util.SearchQueries
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -108,4 +112,45 @@ class ReposRepository @Inject constructor(
 
     suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> =
         api.pullFiles(owner, name, number)
+
+    // ---- People around a repository ------------------------------------------
+
+    suspend fun stargazers(owner: String, name: String, page: Int): Page<User> =
+        LinkHeaderParser.pageFromResponse(api.stargazers(owner, name, page = page))
+
+    suspend fun forks(owner: String, name: String, page: Int): Page<Repo> =
+        LinkHeaderParser.pageFromResponse(api.repoForks(owner, name, page = page))
+
+    // ---- Releases and tags ----------------------------------------------------
+
+    suspend fun releases(owner: String, name: String, page: Int): Page<Release> =
+        LinkHeaderParser.pageFromResponse(api.releases(owner, name, page = page))
+
+    suspend fun tags(owner: String, name: String, page: Int): Page<Tag> =
+        LinkHeaderParser.pageFromResponse(api.tags(owner, name, page = page))
+
+    // ---- Search ---------------------------------------------------------------
+
+    suspend fun searchUsers(query: String, page: Int): Page<User> {
+        val result = api.searchUsers(query = query, page = page)
+        val nextPage = if (result.items.isNotEmpty()) page + 1 else null
+        return Page(items = result.items, nextPage = nextPage)
+    }
+
+    suspend fun searchIssues(query: String, page: Int): Page<Issue> {
+        val result = api.searchIssues(query = query, page = page)
+        val nextPage = if (result.items.isNotEmpty()) page + 1 else null
+        return Page(items = result.items, nextPage = nextPage)
+    }
+
+    /** "Trending this week" approximation; see [SearchQueries.trending]. */
+    suspend fun trending(page: Int): Page<Repo> {
+        val result = api.searchRepos(
+            query = SearchQueries.trending(),
+            page = page,
+            sort = SearchQueries.TRENDING_SORT,
+        )
+        val nextPage = if (result.items.isNotEmpty()) page + 1 else null
+        return Page(items = result.items, nextPage = nextPage)
+    }
 }

@@ -296,4 +296,34 @@
     <string name="new_gist_submit">Создать gist</string>
     <string name="new_gist_created">Gist создан — ссылка скопирована</string>
     <string name="error_name_required">Укажите имя</string>
+
+    <!-- P1 batch: user profiles -->
+    <string name="user_title">Профиль</string>
+    <string name="user_tab_repos">Репозитории</string>
+    <string name="user_tab_stars">Звёзды</string>
+    <string name="user_tab_followers">Подписчики</string>
+    <string name="user_tab_following">Подписки</string>
+    <string name="user_followers_short">подписчиков</string>
+    <string name="user_repos_short">репо.</string>
+
+    <!-- P1 batch: search everywhere and trending -->
+    <string name="search_type_repos">Репозитории</string>
+    <string name="search_type_users">Пользователи</string>
+    <string name="search_type_issues">Issues и PR</string>
+    <string name="search_field_label_users">Поиск пользователей</string>
+    <string name="search_field_label_issues">Поиск issues и pull request’ов</string>
+    <string name="trending_title">Популярное за неделю</string>
+
+    <!-- P1 batch: releases and tags -->
+    <string name="releases_title">Релизы</string>
+    <string name="releases_tab_releases">Релизы</string>
+    <string name="releases_tab_tags">Теги</string>
+    <string name="release_assets">Файлы</string>
+    <string name="release_prerelease">пре-релиз</string>
+    <string name="releases_empty_title">Релизов пока нет</string>
+    <string name="releases_empty_body">В этом репозитории ещё не публиковались релизы или теги.</string>
+
+    <!-- P1 batch: repository people -->
+    <string name="people_title_stargazers">Звёзды</string>
+    <string name="forks_title">Форки</string>
 </resources>

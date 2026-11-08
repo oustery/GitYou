@@ -20,9 +20,13 @@ import com.gityou.app.data.remote.dto.PrReview
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Reaction
 import com.gityou.app.data.remote.dto.ReactionRequest
+import com.gityou.app.data.remote.dto.Release
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.remote.dto.ReviewRequest
+import com.gityou.app.data.remote.dto.SearchIssuesResponse
 import com.gityou.app.data.remote.dto.SearchReposResponse
+import com.gityou.app.data.remote.dto.SearchUsersResponse
+import com.gityou.app.data.remote.dto.Tag
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
 import com.gityou.app.data.remote.dto.User
 import retrofit2.http.Body
@@ -66,6 +70,57 @@ interface GitHubApi {
         @Query("sort") sort: String? = null,
         @Query("order") order: String = "desc",
     ): SearchReposResponse
+
+    @GET("search/users")
+    suspend fun searchUsers(
+        @Query("q") query: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): SearchUsersResponse
+
+    @GET("search/issues")
+    suspend fun searchIssues(
+        @Query("q") query: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+        @Query("sort") sort: String? = null,
+        @Query("order") order: String = "desc",
+    ): SearchIssuesResponse
+
+    // ---- Public user profiles -----------------------------------------------
+
+    @GET("users/{login}")
+    suspend fun user(@Path("login") login: String): User
+
+    @GET("users/{login}/repos")
+    suspend fun userRepos(
+        @Path("login") login: String,
+        @Query("sort") sort: String = "updated",
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<Repo>>
+
+    @GET("users/{login}/starred")
+    suspend fun userStars(
+        @Path("login") login: String,
+        @Query("sort") sort: String = "updated",
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<Repo>>
+
+    @GET("users/{login}/followers")
+    suspend fun followers(
+        @Path("login") login: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<User>>
+
+    @GET("users/{login}/following")
+    suspend fun following(
+        @Path("login") login: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<User>>
 
     // ---- Repository ---------------------------------------------------------
 
@@ -113,6 +168,40 @@ interface GitHubApi {
         @Path("owner") owner: String,
         @Path("repo") repo: String,
     ): Repo
+
+    /** Public stargazers of a repository (anonymous-safe user list). */
+    @GET("repos/{owner}/{repo}/stargazers")
+    suspend fun stargazers(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<User>>
+
+    /** Repositories forked from this one, most recently forked first. */
+    @GET("repos/{owner}/{repo}/forks")
+    suspend fun repoForks(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<Repo>>
+
+    @GET("repos/{owner}/{repo}/releases")
+    suspend fun releases(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<Release>>
+
+    @GET("repos/{owner}/{repo}/tags")
+    suspend fun tags(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1,
+    ): Response<List<Tag>>
 
     // ---- Stars --------------------------------------------------------------
 

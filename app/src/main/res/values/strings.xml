@@ -293,4 +293,34 @@
     <string name="new_gist_submit">Create gist</string>
     <string name="new_gist_created">Gist created — link copied</string>
     <string name="error_name_required">Name is required</string>
+
+    <!-- P1 batch: user profiles -->
+    <string name="user_title">Profile</string>
+    <string name="user_tab_repos">Repositories</string>
+    <string name="user_tab_stars">Stars</string>
+    <string name="user_tab_followers">Followers</string>
+    <string name="user_tab_following">Following</string>
+    <string name="user_followers_short">followers</string>
+    <string name="user_repos_short">repos</string>
+
+    <!-- P1 batch: search everywhere and trending -->
+    <string name="search_type_repos">Repositories</string>
+    <string name="search_type_users">Users</string>
+    <string name="search_type_issues">Issues &amp; PRs</string>
+    <string name="search_field_label_users">Search users</string>
+    <string name="search_field_label_issues">Search issues and pull requests</string>
+    <string name="trending_title">Trending this week</string>
+
+    <!-- P1 batch: releases and tags -->
+    <string name="releases_title">Releases</string>
+    <string name="releases_tab_releases">Releases</string>
+    <string name="releases_tab_tags">Tags</string>
+    <string name="release_assets">Assets</string>
+    <string name="release_prerelease">pre-release</string>
+    <string name="releases_empty_title">No releases yet</string>
+    <string name="releases_empty_body">This repository has not published any releases or tags.</string>
+
+    <!-- P1 batch: repository people -->
+    <string name="people_title_stargazers">Stargazers</string>
+    <string name="forks_title">Forks</string>
 </resources>

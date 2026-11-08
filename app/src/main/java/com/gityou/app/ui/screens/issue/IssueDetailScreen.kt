@@ -73,6 +73,7 @@ import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
 import com.gityou.app.ui.components.relativeTimeString
+import androidx.compose.foundation.clickable
 import com.gityou.app.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -82,6 +83,7 @@ fun IssueDetailScreen(
     isPull: Boolean,
     onBack: () -> Unit,
     onOpenFiles: () -> Unit = {},
+    onOpenUser: (String) -> Unit = {},
     viewModel: IssueDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -168,7 +170,7 @@ fun IssueDetailScreen(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
                 ) {
-                    item(key = "header") { IssueHeader(screenState.detail) }
+                    item(key = "header") { IssueHeader(screenState.detail, onOpenUser) }
                     if (isPull && screenState.reviews.isNotEmpty()) {
                         item(key = "reviews") { ReviewsSummaryCard(screenState.reviews) }
                     }
@@ -202,6 +204,7 @@ fun IssueDetailScreen(
                             onEdit = { editingComment = comment },
                             onDelete = { deletingComment = comment },
                             onReact = { content -> viewModel.reactToComment(comment.id, content) },
+                            onOpenUser = onOpenUser,
                         )
                         Spacer(Modifier.height(Spacing.xs))
                     }
@@ -381,7 +384,7 @@ private fun ManagementMenu(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun IssueHeader(detail: IssueDetailUi) {
+private fun IssueHeader(detail: IssueDetailUi, onOpenUser: (String) -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -433,7 +436,12 @@ private fun IssueHeader(detail: IssueDetailUi) {
         )
 
         Spacer(Modifier.height(Spacing.md))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(enabled = detail.authorLogin.isNotBlank()) {
+                onOpenUser(detail.authorLogin)
+            },
+        ) {
             AsyncImage(
                 model = detail.authorAvatar,
                 contentDescription = null,
@@ -688,6 +696,7 @@ private fun CommentCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onReact: (String) -> Unit,
+    onOpenUser: (String) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var reactionsExpanded by remember { mutableStateOf(false) }
@@ -698,7 +707,12 @@ private fun CommentCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable(enabled = comment.user?.login != null) {
+                    onOpenUser(comment.user?.login.orEmpty())
+                },
+            ) {
                 AsyncImage(
                     model = comment.user?.avatarUrl,
                     contentDescription = null,
@@ -710,6 +724,11 @@ private fun CommentCard(
                 Text(
                     comment.user?.login ?: "",
                     style = MaterialTheme.typography.titleSmall,
+                    color = if (comment.user?.login != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
                 Spacer(Modifier.weight(1f))
                 Text(

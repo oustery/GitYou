@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,7 @@ fun CommitsScreen(
     repoName: String,
     onBack: () -> Unit,
     onOpenCommit: (String) -> Unit,
+    onOpenUser: (String) -> Unit = {},
     viewModel: CommitsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -88,9 +90,14 @@ fun CommitsScreen(
                 modifier = Modifier.padding(padding),
             ) {
                 items(ui.commits, key = { it.sha }) { commit ->
-                    CommitRow(commit, onClick = { onOpenCommit(commit.sha) })
+                    CommitRow(commit, onClick = { onOpenCommit(commit.sha) }, onOpenUser = onOpenUser)
                 }
-                item {
+                item(key = "load-more") {
+                    // Auto-fetch the next page while the footer is visible
+                    // (the footer also doubles as the retry button, F-013).
+                    LaunchedEffect(ui.commits.size, ui.loadMoreFailed) {
+                        if (ui.hasMore && !ui.loadMoreFailed) viewModel.loadMore()
+                    }
                     LoadMoreFooter(
                         visible = ui.loadingMore,
                         failed = ui.loadMoreFailed,
@@ -103,7 +110,7 @@ fun CommitsScreen(
 }
 
 @Composable
-private fun CommitRow(commit: CommitListItem, onClick: () -> Unit) {
+private fun CommitRow(commit: CommitListItem, onClick: () -> Unit, onOpenUser: (String) -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -121,14 +128,28 @@ private fun CommitRow(commit: CommitListItem, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(Spacing.xs))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val authorLogin = commit.author?.login
+                val authorText = authorLogin
+                    ?: commit.commit?.author?.name.orEmpty()
                 Text(
-                    commit.author?.login
-                        ?: commit.commit?.author?.name.orEmpty(),
+                    authorText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (authorLogin != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .then(
+                            if (authorLogin != null) {
+                                Modifier.clickable { onOpenUser(authorLogin) }
+                            } else {
+                                Modifier
+                            },
+                        ),
                 )
                 Spacer(Modifier.width(Spacing.sm))
                 Text(
