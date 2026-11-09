@@ -26,9 +26,9 @@ import javax.crypto.spec.GCMParameterSpec
  * at-rest gap.
  *
  * Degradation is deliberate: on a device where the Keystore is unavailable or
- * a stored ciphertext cannot be decrypted (e.g. key invalidated by a lock
- * change), the store falls back to plaintext so the user is never locked out —
- * but every failure is logged, and [isEncrypted] reports the actual state.
+ * a stored ciphertext cannot be decrypted (e.g. the key was invalidated by a
+ * lock-screen change), the store falls back to plaintext / a cleared session
+ * so the user is never locked out or crashed — but every failure is logged.
  */
 class TokenCipher(
     private val keyStoreProvider: () -> KeyStore? = { defaultKeyStore() },
@@ -40,14 +40,14 @@ class TokenCipher(
         private set
 
     /**
-     * Returns `enc:<base64(iv|ciphertext)>` or, when the Keystore is not
+     * Returns `enc:v1:<base64(iv|ciphertext)>` or, when the Keystore is not
      * usable, the token unchanged. Encrypting must never throw into the
      * sign-in path.
      */
     fun encrypt(token: String): String {
-        if (token.isBlank()) return token
-        if (token.startsWith(PREFIX)) return token
-        val key = keyOrNull() ?: run {
+        if (token.isBlank() || token.startsWith(PREFIX)) return token
+        val key = keyOrNull()
+        if (key == null) {
             isEncrypted = false
             return token
         }
@@ -66,7 +66,7 @@ class TokenCipher(
 
     /**
      * Reverses [encrypt]. Values without the prefix are legacy plaintext and
-     * are returned as-is, which is what makes the upgrade migration a no-op
+     * are returned as-is, which is what makes the upgrade migration a plain
      * read. A ciphertext that cannot be decrypted returns null: the caller
      * then treats the session as signed out instead of crashing.
      */
@@ -79,36 +79,46 @@ class TokenCipher(
         val key = keyOrNull() ?: return null
         return try {
             val payload = Base64.decode(stored.removePrefix(PREFIX), Base64.NO_WRAP)
-            if (payload.size <= IV_BYTES) return null
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(
-                Cipher.DECRYPT_MODE,
-                key,
-                GCMParameterSpec(TAG_BITS, payload, 0, IV_BYTES),
-            )
-            val plain = cipher.doFinal(payload, IV_BYTES, payload.size - IV_BYTES)
-            isEncrypted = true
-            String(plain, Charsets.UTF_8)
+            if (payload.size <= IV_BYTES) {
+                null
+            } else {
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    key,
+                    GCMParameterSpec(TAG_BITS, payload, 0, IV_BYTES),
+                )
+                val plain = cipher.doFinal(payload, IV_BYTES, payload.size - IV_BYTES)
+                isEncrypted = true
+                String(plain, Charsets.UTF_8)
+            }
         } catch (e: GeneralSecurityException) {
             Log.w(TAG, "Stored token could not be decrypted; clearing session", e)
             null
         }
     }
 
-    private fun keyOrNull(): SecretKey? = try {
+    /** Existing key from the Keystore, created on first use. */
+    private fun keyOrNull(): SecretKey? {
         val store = keyStoreProvider() ?: return null
-        (store.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
-            ?: generateKey(store)
-    } catch (e: GeneralSecurityException) {
-        // Keystore missing, locked before first unlock, or the key was
-        // invalidated: degrade to plaintext/cleared session, never crash.
-        // GeneralSecurityException covers KeyStoreException,
-        // UnrecoverableKeyException and every cipher failure.
-        Log.w(TAG, "Keystore unavailable", e)
-        null
+        return try {
+            (store.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
+                ?: generateKey()
+        } catch (e: GeneralSecurityException) {
+            // Keystore missing, locked before first unlock, or the key was
+            // invalidated: degrade to plaintext/cleared session, never crash.
+            // GeneralSecurityException covers KeyStoreException,
+            // UnrecoverableKeyException and every cipher failure.
+            Log.w(TAG, "Keystore unavailable", e)
+            null
+        }
     }
 
-    private fun generateKey(store: KeyStore): SecretKey? {
+    /**
+     * Creates the app's AES key inside the Keystore. KeyGenerator binds the
+     * key to AndroidKeyStore itself, so no store instance is needed here.
+     */
+    private fun generateKey(): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         generator.init(
             KeyGenParameterSpec.Builder(
@@ -124,8 +134,7 @@ class TokenCipher(
                 .setUserAuthenticationRequired(false)
                 .build(),
         )
-        val key = generator.generateKey()
-        return key
+        return generator.generateKey()
     }
 
     private companion object {
