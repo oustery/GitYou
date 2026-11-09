@@ -308,14 +308,19 @@ interface GitHubApi {
         @Path("sha") sha: String,
     ): CommitDetail
 
-    /** Changed files of a pull request, each with its unified diff patch. */
+    /**
+     * Changed files of a pull request, each with its unified diff patch.
+     * The endpoint caps `per_page` at 100, so callers must follow the Link
+     * header — a PR with more than 100 files otherwise loses the tail (G-003).
+     */
     @GET("repos/{owner}/{repo}/pulls/{number}/files")
     suspend fun pullFiles(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
         @Path("number") number: Int,
         @Query("per_page") perPage: Int = 100,
-    ): List<CommitFile>
+        @Query("page") page: Int = 1,
+    ): Response<List<CommitFile>>
 
     // ---- Issue / PR management ----------------------------------------------
 

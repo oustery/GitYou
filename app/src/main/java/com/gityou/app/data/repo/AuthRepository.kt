@@ -59,6 +59,11 @@ class AuthRepository @Inject constructor(
     suspend fun currentUser(): User = gitHubApi.authenticatedUser()
 
     companion object {
-        const val SCOPES = "repo read:user notifications"
+        /**
+         * `gist` is required by the "New gist" screen: without it GitHub
+         * answers `POST /gists` with 404, which the UI reported as a generic
+         * failure (G-001).
+         */
+        const val SCOPES = "repo read:user notifications gist"
     }
 }

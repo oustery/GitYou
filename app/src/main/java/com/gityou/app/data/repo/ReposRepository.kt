@@ -36,6 +36,12 @@ class ReposRepository @Inject constructor(
 
         /** NUL-byte scan window for the binary heuristic. */
         const val BINARY_SCAN_BYTES = 8_192
+
+        /**
+         * Guard against a pathological Link header on the PR files endpoint:
+         * 100 pages is 10 000 files, far beyond any reviewer-facing diff.
+         */
+        const val MAX_PULL_FILE_PAGES = 100
     }
 
     suspend fun myRepos(page: Int): Page<Repo> = LinkHeaderParser.pageFromResponse(api.myRepos(page = page))
@@ -110,8 +116,24 @@ class ReposRepository @Inject constructor(
     suspend fun commit(owner: String, name: String, sha: String): CommitDetail =
         api.commit(owner, name, sha)
 
-    suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> =
-        api.pullFiles(owner, name, number)
+    /**
+     * All changed files of a pull request, Link-header driven (G-003). GitHub
+     * serves at most 100 files per page; truncating silently made the diff
+     * viewer show an incomplete change set.
+     */
+    suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> {
+        val all = mutableListOf<CommitFile>()
+        var page = 1
+        while (page <= MAX_PULL_FILE_PAGES) {
+            val response = api.pullFiles(owner, name, number, page = page)
+            if (!response.isSuccessful) throw HttpException(response)
+            all += response.body().orEmpty()
+            val next = LinkHeaderParser.nextPageNumber(response.headers()["Link"])
+            if (next == null || next <= page) break
+            page = next
+        }
+        return all
+    }
 
     // ---- People around a repository ------------------------------------------
 

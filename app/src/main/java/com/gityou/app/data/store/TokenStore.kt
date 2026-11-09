@@ -15,15 +15,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Persisted app preferences and the GitHub access token. */
 @Singleton
 class TokenStore @Inject constructor(
     @ApplicationContext context: Context,
+    private val tokenCipher: TokenCipher,
 ) {
     data class AppSettings(
         val themeMode: String = "system",
@@ -53,6 +59,9 @@ class TokenStore @Inject constructor(
 
     private companion object {
         const val TAG = "TokenStore"
+
+        /** Must match [TokenCipher]'s prefix; kept here to avoid a hard dependency. */
+        const val ENCRYPTED_PREFIX = "enc:v1:"
     }
 
     private object Keys {
@@ -74,17 +83,51 @@ class TokenStore @Inject constructor(
     @Volatile
     private var cachedToken: String? = null
 
+    /**
+     * Single source of truth for the unread badge (G-004). The badge used to
+     * live only in AppViewModel and was recomputed from the first notification
+     * page, so "mark all read" left a stale number behind. Every place that
+     * learns the true count publishes it here; every badge reads it.
+     */
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+
     init {
         scope.launch {
             dataStore.data
                 .catch { cause -> logDataStoreError("token cache", cause) }
-                .collect { prefs -> cachedToken = prefs[Keys.TOKEN] }
+                .collect { prefs ->
+                    cachedToken = withContext(Dispatchers.IO) {
+                        tokenCipher.decrypt(prefs[Keys.TOKEN])
+                    }
+                }
+        }
+        scope.launch { migratePlaintextToken() }
+    }
+
+    /**
+     * G-002 migration: a token written by an older build sits in DataStore as
+     * plaintext. Encrypt it in place on first run so the upgrade is invisible
+     * to the user and the file stops containing a usable credential.
+     */
+    private suspend fun migratePlaintextToken() {
+        val stored = runCatching { dataStore.data.first()[Keys.TOKEN] }.getOrNull()
+        if (stored.isNullOrBlank() || stored.startsWith(ENCRYPTED_PREFIX)) return
+        val encrypted = withContext(Dispatchers.IO) { tokenCipher.encrypt(stored) }
+        if (encrypted.startsWith(ENCRYPTED_PREFIX)) {
+            dataStore.edit { it[Keys.TOKEN] = encrypted }
+            cachedToken = stored
         }
     }
 
+    /**
+     * Decryption touches the Android Keystore, so the mapping runs on IO
+     * instead of on the collector's (usually main) dispatcher.
+     */
     val tokenFlow: Flow<String?> = dataStore.data
         .catch { cause -> logDataStoreError("token flow", cause) }
-        .map { it[Keys.TOKEN] }
+        .map { tokenCipher.decrypt(it[Keys.TOKEN]) }
+        .flowOn(Dispatchers.IO)
 
     val settingsFlow: Flow<AppSettings> = dataStore.data
         .catch { cause -> logDataStoreError("settings flow", cause) }
@@ -106,6 +149,24 @@ class TokenStore @Inject constructor(
 
     fun cachedToken(): String? = cachedToken
 
+    /**
+     * Publishes the authoritative unread count. [count] must come from a full
+     * notification fetch (not from a single page) so the badge never shows a
+     * floor of the real number.
+     */
+    fun setUnreadCount(count: Int) {
+        _unreadCount.value = count.coerceAtLeast(0)
+    }
+
+    /** Optimistically drops the badge when the server call has succeeded. */
+    fun decrementUnread(by: Int = 1) {
+        _unreadCount.value = (_unreadCount.value - by).coerceAtLeast(0)
+    }
+
+    fun clearUnread() {
+        _unreadCount.value = 0
+    }
+
     /** In-app override, falling back to the compile-time BuildConfig value. */
     suspend fun clientId(): String {
         val stored = dataStore.data.first()[Keys.CLIENT_ID]?.takeIf { it.isNotBlank() }
@@ -114,7 +175,10 @@ class TokenStore @Inject constructor(
 
     suspend fun saveToken(token: String) {
         val trimmed = token.trim()
-        dataStore.edit { it[Keys.TOKEN] = trimmed }
+        // Encrypted at rest with a Keystore-backed key (G-002); encryption is
+        // an IO-bound Keystore operation, never run on the caller's thread.
+        val stored = withContext(Dispatchers.IO) { tokenCipher.encrypt(trimmed) }
+        dataStore.edit { it[Keys.TOKEN] = stored }
         // Update the cache in the same call: the first request after sign-in
         // must already carry the Authorization header (the collector above is
         // asynchronous and would race the network call, F-005).
@@ -123,6 +187,7 @@ class TokenStore @Inject constructor(
 
     suspend fun clearToken() {
         dataStore.edit { it.remove(Keys.TOKEN) }
+        clearUnread()
         // Same race as saveToken: a request fired right after sign-out must
         // not go out with the stale token attached.
         cachedToken = null

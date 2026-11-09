@@ -46,12 +46,12 @@
     <string name="auth_try_again">Try again</string>
     <string name="auth_missing_client_id">Add the OAuth App Client ID to use Device Flow.</string>
     <string name="auth_pat_title">Personal access token</string>
-    <string name="auth_pat_body">Fast alternative: paste a token with repo, read:user and notifications scopes.</string>
+    <string name="auth_pat_body">Fast alternative: paste a token with repo, read:user, notifications and gist scopes.</string>
     <string name="auth_pat_label">github_pat_… or ghp_…</string>
     <string name="auth_show_token">Show token</string>
     <string name="auth_hide_token">Hide token</string>
     <string name="auth_pat_button">Sign in</string>
-    <string name="auth_pat_scopes_hint">Classic tokens need the repo, read:user and notifications scopes.</string>
+    <string name="auth_pat_scopes_hint">Classic tokens need the repo, read:user, notifications and gist scopes.</string>
 
     <!-- Star button -->
     <string name="star_action_add">Star repository</string>

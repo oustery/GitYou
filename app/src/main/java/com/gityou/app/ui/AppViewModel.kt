@@ -35,8 +35,12 @@ class AppViewModel @Inject constructor(
     private val _settings = MutableStateFlow(TokenStore.AppSettings())
     val settings: StateFlow<TokenStore.AppSettings> = _settings.asStateFlow()
 
-    private val _unreadCount = MutableStateFlow(0)
-    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+    /**
+     * The badge reads the shared count from TokenStore instead of owning a
+     * second copy (G-004): the notifications screen publishes the real number
+     * after every fetch/mark-read, and the badge follows.
+     */
+    val unreadCount: StateFlow<Int> = tokenStore.unreadCount
 
     init {
         viewModelScope.launch {
@@ -46,7 +50,7 @@ class AppViewModel @Inject constructor(
             tokenStore.tokenFlow.collect { token ->
                 if (token.isNullOrBlank()) {
                     _appState.value = AppState.SignedOut
-                    _unreadCount.value = 0
+                    tokenStore.clearUnread()
                     return@collect
                 }
                 val user = try {
@@ -72,10 +76,14 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    /** Refreshes the badge count shown on the navigation bell. */
+    /**
+     * Refreshes the badge from the API. A null result (offline, rate limit)
+     * keeps the last known number instead of resetting it to zero, which used
+     * to make the bell look "all read" after a failed refresh.
+     */
     fun refreshUnread() {
         viewModelScope.launch {
-            _unreadCount.value = notificationsRepository.unreadEstimate() ?: 0
+            notificationsRepository.unreadCount()?.let { tokenStore.setUnreadCount(it) }
         }
     }
 }

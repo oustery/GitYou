@@ -34,6 +34,10 @@ exceptions:
       - '**/data/repo/AuthRepository.kt'
       - '**/ui/AppViewModel.kt'
       - '**/ui/screens/auth/AuthViewModel.kt'
+      # Keystore I/O raises several unrelated checked exceptions; the cipher
+      # must degrade to plaintext instead of throwing into the sign-in path
+      # (G-002). Every catch logs the cause, so nothing is swallowed silently.
+      - '**/data/store/TokenCipher.kt'
       - '**/test/**'
       - '**/androidTest/**'
   SwallowedException:

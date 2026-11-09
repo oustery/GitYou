@@ -46,12 +46,12 @@
     <string name="auth_try_again">Попробовать снова</string>
     <string name="auth_missing_client_id">Добавьте Client ID OAuth-приложения для входа через Device Flow.</string>
     <string name="auth_pat_title">Персональный токен доступа</string>
-    <string name="auth_pat_body">Быстрая альтернатива: вставьте токен со скоупами repo, read:user и notifications.</string>
+    <string name="auth_pat_body">Быстрая альтернатива: вставьте токен со скоупами repo, read:user, notifications и gist.</string>
     <string name="auth_pat_label">github_pat_… или ghp_…</string>
     <string name="auth_show_token">Показать токен</string>
     <string name="auth_hide_token">Скрыть токен</string>
     <string name="auth_pat_button">Войти</string>
-    <string name="auth_pat_scopes_hint">Классическим токенам нужны скоупы repo, read:user и notifications.</string>
+    <string name="auth_pat_scopes_hint">Классическим токенам нужны скоупы repo, read:user, notifications и gist.</string>
 
     <!-- Star button -->
     <string name="star_action_add">Поставить звезду репозиторию</string>
