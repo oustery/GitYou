@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.gityou.app.BuildConfig
@@ -43,6 +44,14 @@ class TokenStore @Inject constructor(
         val renderMarkdown: Boolean = true,
         val hapticsEnabled: Boolean = true,
         val markReadOnOpen: Boolean = true,
+        /**
+         * Ask for a device credential before showing the app (G-016). The
+         * stored token grants write access to every repository the user can
+         * push to; a lost unlocked phone must not hand that over.
+         */
+        val biometricLock: Boolean = false,
+        /** Minutes in the background before the lock re-arms; 0 = immediately. */
+        val lockTimeoutMinutes: Int = 1,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -78,6 +87,8 @@ class TokenStore @Inject constructor(
         val RENDER_MARKDOWN = booleanPreferencesKey("render_markdown")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val MARK_READ_ON_OPEN = booleanPreferencesKey("mark_read_on_open")
+        val BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
+        val LOCK_TIMEOUT = intPreferencesKey("lock_timeout_minutes")
     }
 
     @Volatile
@@ -144,6 +155,8 @@ class TokenStore @Inject constructor(
                 renderMarkdown = prefs[Keys.RENDER_MARKDOWN] ?: true,
                 hapticsEnabled = prefs[Keys.HAPTICS_ENABLED] ?: true,
                 markReadOnOpen = prefs[Keys.MARK_READ_ON_OPEN] ?: true,
+                biometricLock = prefs[Keys.BIOMETRIC_LOCK] ?: false,
+                lockTimeoutMinutes = prefs[Keys.LOCK_TIMEOUT] ?: 1,
             )
         }
 
@@ -223,6 +236,14 @@ class TokenStore @Inject constructor(
 
     suspend fun saveDefaultTab(tab: String) {
         dataStore.edit { it[Keys.DEFAULT_TAB] = tab }
+    }
+
+    suspend fun saveBiometricLock(enabled: Boolean) {
+        dataStore.edit { it[Keys.BIOMETRIC_LOCK] = enabled }
+    }
+
+    suspend fun saveLockTimeout(minutes: Int) {
+        dataStore.edit { it[Keys.LOCK_TIMEOUT] = minutes.coerceAtLeast(0) }
     }
 
     suspend fun saveAppLanguage(language: String) {

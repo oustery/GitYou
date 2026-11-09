@@ -34,6 +34,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gityou.app.R
 import com.gityou.app.data.util.DeepLinkRouting
+import com.gityou.app.ui.components.AppLockScreen
 import com.gityou.app.ui.components.LocalHapticsEnabled
 import com.gityou.app.ui.components.LocalMarkdownFactory
 import com.gityou.app.ui.components.LocalRenderMarkdown
@@ -56,6 +57,7 @@ fun GitYouApp(
     val appState by appViewModel.appState.collectAsStateWithLifecycle()
     val settings by appViewModel.settings.collectAsStateWithLifecycle()
     val unreadCount by appViewModel.unreadCount.collectAsStateWithLifecycle()
+    val locked by appViewModel.locked.collectAsStateWithLifecycle()
     val pendingRoute by appViewModel.pendingRoute.collectAsStateWithLifecycle()
     val pendingShare by appViewModel.pendingShare.collectAsStateWithLifecycle()
 
@@ -85,15 +87,21 @@ fun GitYouApp(
                 when (appState) {
                     AppViewModel.AppState.Loading -> BrandedLoading()
                     AppViewModel.AppState.SignedOut -> AuthScreen()
-                    is AppViewModel.AppState.SignedIn -> MainScaffold(
-                        unreadCount = unreadCount,
-                        defaultTab = Route.defaultTabRoute(settings.defaultTab),
-                        onRefreshUnread = appViewModel::refreshUnread,
-                        pendingRoute = pendingRoute,
-                        onPendingRouteHandled = appViewModel::consumePendingRoute,
-                        pendingShare = pendingShare,
-                        onPendingShareHandled = appViewModel::consumePendingShare,
-                    )
+                    // The lock sits between the credential and the content, so
+                    // nothing behind it is composed while locked (G-016).
+                    is AppViewModel.AppState.SignedIn -> if (locked) {
+                        AppLockScreen(onUnlocked = appViewModel::unlock)
+                    } else {
+                        MainScaffold(
+                            unreadCount = unreadCount,
+                            defaultTab = Route.defaultTabRoute(settings.defaultTab),
+                            onRefreshUnread = appViewModel::refreshUnread,
+                            pendingRoute = pendingRoute,
+                            onPendingRouteHandled = appViewModel::consumePendingRoute,
+                            pendingShare = pendingShare,
+                            onPendingShareHandled = appViewModel::consumePendingShare,
+                        )
+                    }
                 }
             }
         }

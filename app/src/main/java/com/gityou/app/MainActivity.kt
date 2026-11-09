@@ -56,6 +56,21 @@ class MainActivity : ComponentActivity() {
      * `launchMode` stays standard, so a second App Link starts a new instance
      * only when the task was finished; this covers the warm case.
      */
+    /**
+     * Lock re-arming happens on the lifecycle, not on every pause: a
+     * configuration change (rotation, theme switch) must not lock the app
+     * mid-use, while a real trip to the background must (G-016).
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) appViewModel.onAppBackgrounded()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        appViewModel.onAppForegrounded()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

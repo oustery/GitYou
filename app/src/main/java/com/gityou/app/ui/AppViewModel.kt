@@ -53,6 +53,16 @@ class AppViewModel @Inject constructor(
     private val _pendingRoute = MutableStateFlow<String?>(null)
     val pendingRoute: StateFlow<String?> = _pendingRoute.asStateFlow()
 
+    /**
+     * Whether the app is locked (G-016). Set from the lifecycle: the app locks
+     * when it went to the background longer than the configured timeout, or
+     * always on a cold start.
+     */
+    private val _locked = MutableStateFlow(false)
+    val locked: StateFlow<Boolean> = _locked.asStateFlow()
+
+    private var backgroundedAt: Long? = null
+
     /** Text shared into the app ("Share to GitYou"), offered as a new issue. */
     private val _pendingShare = MutableStateFlow<String?>(null)
     val pendingShare: StateFlow<String?> = _pendingShare.asStateFlow()
@@ -109,6 +119,32 @@ class AppViewModel @Inject constructor(
                 _pendingShare.value = DeepLinkRouting.firstGitHubUrl(text) ?: text?.trim()
             }
         }
+    }
+
+    /**
+     * Re-arms the lock after the app spent more than the configured timeout in
+     * the background. A short trip (notification shade, permission dialog)
+     * must not ask for the credential again.
+     */
+    fun onAppBackgrounded() {
+        backgroundedAt = System.currentTimeMillis()
+    }
+
+    fun onAppForegrounded() {
+        val leftAt = backgroundedAt ?: return
+        backgroundedAt = null
+        if (!_settings.value.biometricLock) return
+        val timeoutMs = _settings.value.lockTimeoutMinutes.coerceAtLeast(0) * 60_000L
+        if (System.currentTimeMillis() - leftAt >= timeoutMs) _locked.value = true
+    }
+
+    fun unlock() {
+        _locked.value = false
+    }
+
+    /** Locks immediately (used when the setting is switched on). */
+    fun lockNow() {
+        if (_settings.value.biometricLock) _locked.value = true
     }
 
     fun consumePendingRoute() {

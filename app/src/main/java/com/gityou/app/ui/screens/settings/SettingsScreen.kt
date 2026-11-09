@@ -392,6 +392,46 @@ fun SettingsScreen(
                 )
             }
 
+            // ---- Security ----
+            EyebrowLabel(
+                stringResource(R.string.settings_security_section),
+                modifier = Modifier.padding(top = Spacing.lg),
+            )
+            SettingsCard {
+                SwitchRow(
+                    title = stringResource(R.string.settings_lock_label),
+                    body = stringResource(R.string.settings_lock_body),
+                    checked = settings.biometricLock,
+                    onChecked = viewModel::setBiometricLock,
+                )
+                if (settings.biometricLock) {
+                    // The timeout decides how long a backgrounded app stays
+                    // open; "immediately" is the strict option.
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = Spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        LOCK_TIMEOUTS.forEach { minutes ->
+                            FilterChip(
+                                selected = settings.lockTimeoutMinutes == minutes,
+                                onClick = { viewModel.setLockTimeout(minutes) },
+                                label = {
+                                    Text(
+                                        if (minutes == 0) {
+                                            stringResource(R.string.settings_lock_now)
+                                        } else {
+                                            stringResource(R.string.settings_lock_after_minutes, minutes)
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
             // ---- Data ----
             EyebrowLabel(
                 stringResource(R.string.settings_data_section),
@@ -462,6 +502,25 @@ fun SettingsScreen(
                     }
                 }
             }
+            // Revoking the grant needs the OAuth client secret, which a
+            // public client must not embed, so the only honest option is to
+            // send the user to the official page (G-016). Signing out alone
+            // leaves a token with write access alive on github.com.
+            OutlinedButton(
+                onClick = { openUrl(context, REVOKE_ACCESS_URL) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Spacing.md),
+            ) {
+                Text(stringResource(R.string.settings_revoke_access))
+            }
+            Text(
+                stringResource(R.string.settings_revoke_access_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
+
             OutlinedButton(
                 onClick = { showSignOutConfirm = true },
                 modifier = Modifier
@@ -774,4 +833,9 @@ private fun UpdateDialog(
             }
         },
     )
-}
+
+/** Choices offered for the re-lock delay, in minutes (0 = immediately). */
+private val LOCK_TIMEOUTS = listOf(0, 1, 5, 15)
+
+/** GitHub's own page for removing an app's authorization (G-016). */
+private const val REVOKE_ACCESS_URL = "https://github.com/settings/applications"
