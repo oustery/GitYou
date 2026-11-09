@@ -4,6 +4,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
+import java.security.GeneralSecurityException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -56,7 +57,7 @@ class TokenCipher(
             val payload = cipher.iv + cipher.doFinal(token.toByteArray(Charsets.UTF_8))
             isEncrypted = true
             PREFIX + Base64.encodeToString(payload, Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (e: GeneralSecurityException) {
             Log.w(TAG, "Token encryption unavailable; storing plaintext", e)
             isEncrypted = false
             token
@@ -88,7 +89,7 @@ class TokenCipher(
             val plain = cipher.doFinal(payload, IV_BYTES, payload.size - IV_BYTES)
             isEncrypted = true
             String(plain, Charsets.UTF_8)
-        } catch (e: Exception) {
+        } catch (e: GeneralSecurityException) {
             Log.w(TAG, "Stored token could not be decrypted; clearing session", e)
             null
         }
@@ -98,7 +99,11 @@ class TokenCipher(
         val store = keyStoreProvider() ?: return null
         (store.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry)?.secretKey
             ?: generateKey(store)
-    } catch (e: Exception) {
+    } catch (e: GeneralSecurityException) {
+        // Keystore missing, locked before first unlock, or the key was
+        // invalidated: degrade to plaintext/cleared session, never crash.
+        // GeneralSecurityException covers KeyStoreException,
+        // UnrecoverableKeyException and every cipher failure.
         Log.w(TAG, "Keystore unavailable", e)
         null
     }
