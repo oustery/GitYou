@@ -413,7 +413,7 @@ fun SettingsScreen(
                             .padding(top = Spacing.sm),
                         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
-                        LOCK_TIMEOUTS.forEach { minutes ->
+                        lockTimeouts.forEach { minutes ->
                             FilterChip(
                                 selected = settings.lockTimeoutMinutes == minutes,
                                 onClick = { viewModel.setLockTimeout(minutes) },
@@ -835,7 +835,7 @@ private fun UpdateDialog(
     )
 
 /** Choices offered for the re-lock delay, in minutes (0 = immediately). */
-private val LOCK_TIMEOUTS = listOf(0, 1, 5, 15)
+private val lockTimeouts = listOf(0, 1, 5, 15)
 
 /** GitHub's own page for removing an app's authorization (G-016). */
 private const val REVOKE_ACCESS_URL = "https://github.com/settings/applications"
