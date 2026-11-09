@@ -59,55 +59,55 @@ fun GitYouNavHost(
 ) {
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    NavHost(
-        navController = navController,
-        startDestination = Route.HOME,
-        modifier = modifier,
-        enterTransition = {
-            fadeIn(effects) +
-                slideInHorizontally(spatial) { it / 8 }
-        },
-        exitTransition = {
-            fadeOut(effects) +
-                slideOutHorizontally(spatial) { -it / 10 }
-        },
-        popEnterTransition = {
-            fadeIn(effects) +
-                slideInHorizontally(spatial) { -it / 8 }
-        },
-        popExitTransition = {
-            fadeOut(effects) +
-                slideOutHorizontally(spatial) { it / 10 }
-        },
-    ) {
-        // One link router for every markdown surface (issue bodies, comments,
-        // READMEs, releases): github.com links open the matching app screen,
-        // everything else keeps the default browser behaviour (G-007).
-        val markdownLinkHandler: (String) -> Boolean = { url ->
-            when (val target = GitHubUrls.routeLink(url)) {
-                is GitHubUrls.LinkTarget.Thread -> {
-                    navController.navigate(
-                        Route.issue(
-                            target.ref.owner,
-                            target.ref.repo,
-                            target.ref.number,
-                            target.ref.isPull,
-                        ),
-                    )
-                    true
-                }
-                is GitHubUrls.LinkTarget.Repo -> {
-                    navController.navigate(Route.repo(target.owner, target.repo))
-                    true
-                }
-                is GitHubUrls.LinkTarget.User -> {
-                    navController.navigate(Route.user(target.login))
-                    true
-                }
-                null -> false
+    // One link router for every markdown surface (issue bodies, comments,
+    // READMEs, releases): github.com links open the matching app screen,
+    // everything else keeps the default browser behaviour (G-007).
+    val markdownLinkHandler: (String) -> Boolean = { url ->
+        when (val target = GitHubUrls.routeLink(url)) {
+            is GitHubUrls.LinkTarget.Thread -> {
+                navController.navigate(
+                    Route.issue(
+                        target.ref.owner,
+                        target.ref.repo,
+                        target.ref.number,
+                        target.ref.isPull,
+                    ),
+                )
+                true
             }
+            is GitHubUrls.LinkTarget.Repo -> {
+                navController.navigate(Route.repo(target.owner, target.repo))
+                true
+            }
+            is GitHubUrls.LinkTarget.User -> {
+                navController.navigate(Route.user(target.login))
+                true
+            }
+            null -> false
         }
-        CompositionLocalProvider(LocalMarkdownLinkHandler provides markdownLinkHandler) {
+    }
+    CompositionLocalProvider(LocalMarkdownLinkHandler provides markdownLinkHandler) {
+        NavHost(
+            navController = navController,
+            startDestination = Route.HOME,
+            modifier = modifier,
+            enterTransition = {
+                fadeIn(effects) +
+                    slideInHorizontally(spatial) { it / 8 }
+            },
+            exitTransition = {
+                fadeOut(effects) +
+                    slideOutHorizontally(spatial) { -it / 10 }
+            },
+            popEnterTransition = {
+                fadeIn(effects) +
+                    slideInHorizontally(spatial) { -it / 8 }
+            },
+            popExitTransition = {
+                fadeOut(effects) +
+                    slideOutHorizontally(spatial) { it / 10 }
+            },
+        ) {
             composable(Route.HOME) {
                 HomeScreen(
                     onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
