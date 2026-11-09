@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.ContentItem
 import com.gityou.app.data.remote.dto.Issue
+import com.gityou.app.data.remote.dto.Label
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Repo
+import com.gityou.app.data.repo.IssuesRepository
 import com.gityou.app.data.repo.ReposRepository
 import com.gityou.app.data.repo.ReposRepository.FilePreviewException
 import com.gityou.app.data.util.ApiErrors
@@ -27,7 +29,37 @@ data class IssueListUi(
     val loadingMore: Boolean = false,
     // Keeps pagination retryable instead of permanently wedged (F-013).
     val loadMoreFailed: Boolean = false,
-)
+    // Server-side filters (G-009). Search is client-side text matching over the
+    // loaded page, because the API has no "search within this list" parameter.
+    val labels: List<String> = emptyList(),
+    val assignee: String? = null,
+    val sort: String = "created",
+    val direction: String = "desc",
+    val search: String = "",
+) {
+    val query: ReposRepository.IssueQuery
+        get() = ReposRepository.IssueQuery(
+            state = filter,
+            labels = labels,
+            assignee = assignee,
+            sort = sort,
+            direction = direction,
+        )
+
+    /** Items matching the in-list search box. */
+    val visibleItems: List<Issue>
+        get() {
+            if (search.isBlank()) return items
+            val needle = search.trim()
+            return items.filter { issue ->
+                issue.title.contains(needle, ignoreCase = true) ||
+                    issue.number.toString() == needle ||
+                    issue.user?.login.equals(needle, ignoreCase = true)
+            }
+        }
+
+    val hasFilters: Boolean get() = query.hasFilters || search.isNotBlank()
+}
 
 data class PullListUi(
     val filter: String = "open",
@@ -53,6 +85,8 @@ data class RepoDetailUi(
     val contents: List<ContentItem> = emptyList(),
     val contentsLoading: Boolean = false,
     val issues: IssueListUi = IssueListUi(),
+    /** Repository label palette, for the issue filter chips (G-009). */
+    val labels: List<Label> = emptyList(),
     val pulls: PullListUi = PullListUi(),
     val isStarred: Boolean = false,
     val starBusy: Boolean = false,
@@ -67,6 +101,7 @@ data class RepoDetailUi(
 class RepoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val reposRepository: ReposRepository,
+    private val issuesRepository: IssuesRepository,
 ) : ViewModel() {
 
     val owner: String = savedStateHandle.get<String>("owner").orEmpty()
@@ -195,10 +230,91 @@ class RepoViewModel @Inject constructor(
         loadIssues()
     }
 
-    private fun loadIssues() {
-        val filter = (_state.value as? UiState.Content)?.value?.issues?.filter ?: "open"
+    /** Toggles a label in the server-side filter and reloads the first page. */
+    fun toggleIssueLabel(label: String) {
+        val current = (_state.value as? UiState.Content)?.value?.issues ?: return
+        val labels = if (label in current.labels) current.labels - label else current.labels + label
+        patch {
+            it.copy(
+                issues = it.issues.copy(
+                    labels = labels,
+                    items = emptyList(),
+                    nextPage = 1,
+                    loadMoreFailed = false,
+                ),
+            )
+        }
+        loadIssues()
+    }
+
+    /** "only mine" filter: issues assigned to the signed-in user. */
+    fun toggleAssignedToMe() {
+        val current = (_state.value as? UiState.Content)?.value?.issues ?: return
+        patch {
+            it.copy(
+                issues = it.issues.copy(
+                    assignee = if (current.assignee != null) null else ME,
+                    items = emptyList(),
+                    nextPage = 1,
+                    loadMoreFailed = false,
+                ),
+            )
+        }
+        loadIssues()
+    }
+
+    fun setIssueSort(sort: String) {
+        val current = (_state.value as? UiState.Content)?.value?.issues ?: return
+        if (current.sort == sort) return
+        patch {
+            it.copy(
+                issues = it.issues.copy(
+                    sort = sort,
+                    items = emptyList(),
+                    nextPage = 1,
+                    loadMoreFailed = false,
+                ),
+            )
+        }
+        loadIssues()
+    }
+
+    /** In-list search; no request is made, the loaded page is filtered. */
+    fun setIssueSearch(text: String) {
+        patch { it.copy(issues = it.issues.copy(search = text)) }
+    }
+
+    fun clearIssueFilters() {
+        patch {
+            it.copy(
+                issues = it.issues.copy(
+                    labels = emptyList(),
+                    assignee = null,
+                    sort = "created",
+                    direction = "desc",
+                    search = "",
+                    items = emptyList(),
+                    nextPage = 1,
+                    loadMoreFailed = false,
+                ),
+            )
+        }
+        loadIssues()
+    }
+
+    /** Loads the label palette once; the filter chips are useless without it. */
+    fun loadLabels() {
+        if ((_state.value as? UiState.Content)?.value?.labels?.isNotEmpty() == true) return
         viewModelScope.launch {
-            val result = safeCall { reposRepository.issues(owner, repoName, filter, page = 1) }
+            val labels = safeCall { issuesRepository.repoLabels(owner, repoName) }.getOrNull()
+            if (labels != null) patch { it.copy(labels = labels) }
+        }
+    }
+
+    private fun loadIssues() {
+        val issues = (_state.value as? UiState.Content)?.value?.issues ?: IssueListUi()
+        viewModelScope.launch {
+            val result = safeCall { reposRepository.issues(owner, repoName, issues.query, page = 1) }
             result.fold(
                 onSuccess = { page ->
                     patch { it.copy(issues = it.issues.copy(items = page.items, nextPage = page.nextPage, loadMoreFailed = false)) }
@@ -212,10 +328,10 @@ class RepoViewModel @Inject constructor(
         val current = (_state.value as? UiState.Content)?.value?.issues ?: return
         if (current.loadingMore || current.nextPage == null) return
         val nextPage = current.nextPage ?: return
-        val filter = current.filter
+        val query = current.query
         viewModelScope.launch {
             patch { it.copy(issues = it.issues.copy(loadingMore = true)) }
-            val page = safeCall { reposRepository.issues(owner, repoName, filter, page = nextPage) }
+            val page = safeCall { reposRepository.issues(owner, repoName, query, page = nextPage) }
             // Apply only while the request we started is still current (F-006):
             // a reload or filter switch resets `loadingMore` to false.
             val stillOurs = (_state.value as? UiState.Content)?.value?.issues?.loadingMore == true
@@ -333,5 +449,13 @@ class RepoViewModel @Inject constructor(
                 onFailure = { _ -> _actionMessage.value = R.string.error_generic_action },
             )
         }
+    }
+
+    private companion object {
+        /**
+         * The API special-cases the literal `@me` for "the authenticated
+         * user", so no login lookup is needed for the "assigned to me" filter.
+         */
+        const val ME = "@me"
     }
 }

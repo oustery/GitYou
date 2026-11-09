@@ -123,6 +123,13 @@
     <string name="repo_fork_created">Форк создан — смотрите в своих репозиториях</string>
     <string name="repo_open_in_browser">Открыть в браузере</string>
     <string name="filter_open">Открытые</string>
+    <string name="issue_filter_assigned_me">Назначены мне</string>
+    <string name="issue_filter_most_commented">Обсуждаемые</string>
+    <string name="issue_filter_search_hint">Поиск по этим issue</string>
+    <string name="issue_filter_search_clear">Очистить поиск</string>
+    <string name="filters_clear">Сбросить фильтры</string>
+    <string name="issues_filter_empty_title">Нет подходящих issue</string>
+    <string name="issues_filter_empty_body">Под фильтры ничего не подходит. Сбросьте их, чтобы увидеть весь список.</string>
     <string name="filter_closed">Закрытые</string>
 
     <!-- Issues & pull requests -->

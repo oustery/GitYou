@@ -123,6 +123,13 @@
     <string name="repo_fork_created">Fork created — check your repositories</string>
     <string name="repo_open_in_browser">Open in browser</string>
     <string name="filter_open">Open</string>
+    <string name="issue_filter_assigned_me">Assigned to me</string>
+    <string name="issue_filter_most_commented">Most commented</string>
+    <string name="issue_filter_search_hint">Search in these issues</string>
+    <string name="issue_filter_search_clear">Clear search</string>
+    <string name="filters_clear">Clear filters</string>
+    <string name="issues_filter_empty_title">No matching issues</string>
+    <string name="issues_filter_empty_body">Nothing matches these filters. Clear them to see the full list.</string>
     <string name="filter_closed">Closed</string>
 
     <!-- Issues & pull requests -->

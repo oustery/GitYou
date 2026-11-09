@@ -1,7 +1,6 @@
 package com.gityou.app.data.repo
 
 import com.gityou.app.data.remote.GitHubApi
-import com.gityou.app.data.remote.dto.Branch
 import com.gityou.app.data.remote.dto.CommitDetail
 import com.gityou.app.data.remote.dto.CommitFile
 import com.gityou.app.data.remote.dto.CommitListItem
@@ -86,8 +85,35 @@ class ReposRepository @Inject constructor(
         return String(bytes, Charsets.UTF_8)
     }
 
-    suspend fun issues(owner: String, name: String, state: String, page: Int): Page<Issue> {
-        val pageData = LinkHeaderParser.pageFromResponse(api.issues(owner, name, state, page = page))
+    /** Server-side filters for the repository issue list (G-009). */
+    data class IssueQuery(
+        val state: String = "open",
+        val labels: List<String> = emptyList(),
+        val assignee: String? = null,
+        val creator: String? = null,
+        val sort: String = "created",
+        val direction: String = "desc",
+    ) {
+        /** What "active filters" means to the user: anything beyond defaults. */
+        val hasFilters: Boolean
+            get() = labels.isNotEmpty() || assignee != null || creator != null ||
+                sort != "created" || direction != "desc"
+    }
+
+    suspend fun issues(owner: String, name: String, query: IssueQuery, page: Int): Page<Issue> {
+        val pageData = LinkHeaderParser.pageFromResponse(
+            api.issues(
+                owner = owner,
+                repo = name,
+                state = query.state,
+                labels = query.labels.takeIf { it.isNotEmpty() }?.joinToString(","),
+                assignee = query.assignee,
+                creator = query.creator,
+                sort = query.sort,
+                direction = query.direction,
+                page = page,
+            ),
+        )
         // The issues endpoint also returns pull requests; keep the list clean.
         return pageData.copy(items = pageData.items.filterNot { it.isPullRequest })
     }

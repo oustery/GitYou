@@ -234,11 +234,22 @@ interface GitHubApi {
 
     // ---- Issues -------------------------------------------------------------
 
+    /**
+     * Repository issues. Server-side filtering is what makes the list usable in
+     * a repository with hundreds of issues (G-009): [labels] is a
+     * comma-separated AND list, [assignee] a login, [sort]/[direction] order
+     * the result.
+     */
     @GET("repos/{owner}/{repo}/issues")
     suspend fun issues(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
         @Query("state") state: String = "open",
+        @Query("labels") labels: String? = null,
+        @Query("assignee") assignee: String? = null,
+        @Query("creator") creator: String? = null,
+        @Query("sort") sort: String? = null,
+        @Query("direction") direction: String? = null,
         @Query("per_page") perPage: Int = 30,
         @Query("page") page: Int = 1,
     ): Response<List<Issue>>

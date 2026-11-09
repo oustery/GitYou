@@ -15,9 +15,11 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.MergeType
@@ -61,6 +64,7 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -726,6 +730,93 @@ private fun BranchSelector(
     }
 }
 
+/**
+ * Issue triage controls (G-009): state chips, "assigned to me", label chips
+ * from the repository palette, sort order and an in-list search box. The
+ * filters go to the server so a repository with hundreds of issues stays
+ * navigable; search narrows the loaded page without a request.
+ */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun IssueFilters(ui: RepoDetailUi, viewModel: RepoViewModel) {
+    val issues = ui.issues
+
+    LaunchedEffect(Unit) { viewModel.loadLabels() }
+
+    Column(modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = issues.filter == "open",
+                onClick = { viewModel.setIssueFilter("open") },
+                label = { Text(stringResource(R.string.filter_open)) },
+            )
+            FilterChip(
+                selected = issues.filter == "closed",
+                onClick = { viewModel.setIssueFilter("closed") },
+                label = { Text(stringResource(R.string.filter_closed)) },
+            )
+            FilterChip(
+                selected = issues.assignee == "@me",
+                onClick = viewModel::toggleAssignedToMe,
+                label = { Text(stringResource(R.string.issue_filter_assigned_me)) },
+            )
+            FilterChip(
+                selected = issues.sort == "comments",
+                onClick = {
+                    viewModel.setIssueSort(if (issues.sort == "comments") "created" else "comments")
+                },
+                label = { Text(stringResource(R.string.issue_filter_most_commented)) },
+            )
+        }
+
+        OutlinedTextField(
+            value = issues.search,
+            onValueChange = viewModel::setIssueSearch,
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = Spacing.sm),
+            placeholder = { Text(stringResource(R.string.issue_filter_search_hint)) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (issues.search.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.setIssueSearch("") }) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.issue_filter_search_clear),
+                        )
+                    }
+                }
+            },
+        )
+
+        if (ui.labels.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier.padding(top = Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                ui.labels.forEach { label ->
+                    FilterChip(
+                        selected = label.name in issues.labels,
+                        onClick = { viewModel.toggleIssueLabel(label.name) },
+                        label = { Text(label.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    )
+                }
+            }
+        }
+
+        if (issues.hasFilters) {
+            TextButton(onClick = viewModel::clearIssueFilters) {
+                Text(stringResource(R.string.filters_clear))
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------- Issues / PRs tabs
 
 @Composable
@@ -734,18 +825,28 @@ private fun IssuesTab(
     viewModel: RepoViewModel,
     onOpenIssue: (Int, Boolean) -> Unit,
 ) {
+    IssueFilters(ui = ui, viewModel = viewModel)
     ListWithFilter(
         filter = ui.issues.filter,
         onFilter = viewModel::setIssueFilter,
-        items = ui.issues.items,
+        items = ui.issues.visibleItems,
         loadingMore = ui.issues.loadingMore,
         loadMoreFailed = ui.issues.loadMoreFailed,
         hasMore = ui.issues.nextPage != null,
         onLoadMore = viewModel::loadIssuesMore,
+        showStateChips = false,
         rowContent = { issue -> IssueRow(issue = issue, onClick = { onOpenIssue(issue.number, false) }) },
         emptyIcon = Icons.Outlined.BugReport,
-        emptyTitle = stringResource(R.string.repo_issues_empty_title),
-        emptyBody = stringResource(R.string.repo_issues_empty_body),
+        emptyTitle = if (ui.issues.hasFilters) {
+            stringResource(R.string.issues_filter_empty_title)
+        } else {
+            stringResource(R.string.repo_issues_empty_title)
+        },
+        emptyBody = if (ui.issues.hasFilters) {
+            stringResource(R.string.issues_filter_empty_body)
+        } else {
+            stringResource(R.string.repo_issues_empty_body)
+        },
     )
 }
 
@@ -783,22 +884,25 @@ private fun <T> ListWithFilter(
     emptyIcon: androidx.compose.ui.graphics.vector.ImageVector,
     emptyTitle: String,
     emptyBody: String,
+    showStateChips: Boolean = true,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            FilterChip(
-                selected = filter == "open",
-                onClick = { onFilter("open") },
-                label = { Text(stringResource(R.string.filter_open)) },
-            )
-            FilterChip(
-                selected = filter == "closed",
-                onClick = { onFilter("closed") },
-                label = { Text(stringResource(R.string.filter_closed)) },
-            )
+        if (showStateChips) {
+            Row(
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                FilterChip(
+                    selected = filter == "open",
+                    onClick = { onFilter("open") },
+                    label = { Text(stringResource(R.string.filter_open)) },
+                )
+                FilterChip(
+                    selected = filter == "closed",
+                    onClick = { onFilter("closed") },
+                    label = { Text(stringResource(R.string.filter_closed)) },
+                )
+            }
         }
 
         if (items.isEmpty()) {
