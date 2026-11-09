@@ -165,6 +165,20 @@ class ReposRepository @Inject constructor(
         return Page(items = result.items, nextPage = nextPage)
     }
 
+    /**
+     * One tab of the "My work" hub (G-010): issues assigned to me, created by
+     * me, or pull requests waiting for my review.
+     */
+    suspend fun myWork(tab: SearchQueries.MyWorkTab, page: Int): Page<Issue> {
+        val result = api.searchIssues(
+            query = SearchQueries.myWorkQuery(tab),
+            page = page,
+            sort = SearchQueries.MY_WORK_SORT,
+        )
+        val nextPage = if (result.items.isNotEmpty()) page + 1 else null
+        return Page(items = result.items, nextPage = nextPage)
+    }
+
     /** "Trending this week" approximation; see [SearchQueries.trending]. */
     suspend fun trending(page: Int): Page<Repo> {
         val result = api.searchRepos(

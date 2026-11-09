@@ -339,4 +339,32 @@
     <!-- P1 batch: repository people -->
     <string name="people_title_stargazers">Звёзды</string>
     <string name="forks_title">Форки</string>
+
+    <!-- Моя работа (G-010) -->
+    <string name="my_work_title">Моя работа</string>
+    <string name="my_work_tab_assigned">На мне</string>
+    <string name="my_work_tab_created">Создано мной</string>
+    <string name="my_work_tab_review">На ревью</string>
+    <string name="my_work_empty_assigned_title">Вам ничего не назначено</string>
+    <string name="my_work_empty_assigned_body">Здесь появятся задачи, назначенные на вас, во всех репозиториях.</string>
+    <string name="my_work_empty_created_title">У вас нет открытых задач</string>
+    <string name="my_work_empty_created_body">Здесь появятся созданные вами задачи, которые ещё открыты.</string>
+    <string name="my_work_empty_review_title">Ревью не ждут</string>
+    <string name="my_work_empty_review_body">Здесь появятся пул-реквесты, ожидающие вашего ревью.</string>
+
+    <!-- Мерж пул-реквеста (G-014) -->
+    <string name="pr_merge_action">Смержить пул-реквест</string>
+    <string name="pr_merge_sheet_title">Мерж #%1$d</string>
+    <string name="pr_merge_method_merge">Создать merge-коммит</string>
+    <string name="pr_merge_method_squash">Squash и merge</string>
+    <string name="pr_merge_method_rebase">Rebase и merge</string>
+    <string name="pr_merge_confirm">Смержить</string>
+    <string name="pr_merged">Пул-реквест смержен</string>
+    <string name="pr_merge_hint">Мержится именно тот коммит, который вы посмотрели: если ветка успела измениться, GitHub отклонит мерж, а не вольёт невидимые правки.</string>
+    <string name="pr_state_conflict">Есть конфликты</string>
+    <string name="pr_state_behind">Отстаёт от базовой ветки</string>
+    <string name="pr_state_blocked">Блокировано правилами защиты ветки</string>
+    <string name="pr_state_clean">Готов к мержу</string>
+    <string name="error_merge_conflict">Ветка изменилась после открытия. Обновите экран и посмотрите дифф заново.</string>
+    <string name="error_merge_not_allowed">GitHub отклонил мерж: обязательные проверки, ревью или защита ветки.</string>
 </resources>

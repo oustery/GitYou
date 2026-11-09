@@ -2,6 +2,7 @@ package com.gityou.app.ui.screens.issue
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -43,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -99,6 +101,7 @@ fun IssueDetailScreen(
     var editingComment by remember { mutableStateOf<Comment?>(null) }
     var deletingComment by remember { mutableStateOf<Comment?>(null) }
     var reviewEvent by remember { mutableStateOf<String?>(null) }
+    var showMergeSheet by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(managementMessage) {
         managementMessage?.let {
@@ -144,6 +147,7 @@ fun IssueDetailScreen(
                             showLabelPicker = true
                         },
                         onReview = { event -> reviewEvent = event },
+                        onMerge = { showMergeSheet = true },
                     )
                 },
             )
@@ -263,6 +267,17 @@ fun IssueDetailScreen(
                 }
             }
 
+            if (showMergeSheet) {
+                MergeDialog(
+                    detail = screenState.detail,
+                    merging = screenState.merging,
+                    onConfirm = { method ->
+                        showMergeSheet = false
+                        viewModel.merge(method)
+                    },
+                    onDismiss = { showMergeSheet = false },
+                )
+            }
             if (showLabelPicker) {
                 LabelPickerDialog(
                     available = screenState.availableLabels,
@@ -328,6 +343,7 @@ private fun ManagementMenu(
     isPull: Boolean,
     onEditLabels: () -> Unit,
     onReview: (String) -> Unit,
+    onMerge: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
@@ -363,6 +379,13 @@ private fun ManagementMenu(
                 )
             }
             if (isPull && detail?.state == "open" && !detail.merged) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pr_merge_action)) },
+                    onClick = {
+                        expanded = false
+                        onMerge()
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.review_approve)) },
                     onClick = {
@@ -815,6 +838,90 @@ private fun CommentCard(
             }
         }
     }
+}
+
+/**
+ * Merge sheet (G-014): pick a method and confirm. The state chip states what
+ * GitHub thinks of the branch (`mergeable_state`) so a blocked merge is
+ * explained before the user taps, not through an error afterwards.
+ */
+@Composable
+private fun MergeDialog(
+    detail: IssueDetailUi,
+    merging: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var method by rememberSaveable { mutableStateOf("merge") }
+    AlertDialog(
+        onDismissRequest = { if (!merging) onDismiss() },
+        title = { Text(stringResource(R.string.pr_merge_sheet_title, detail.number)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.pr_merge_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(Spacing.md))
+                listOf(
+                    "merge" to R.string.pr_merge_method_merge,
+                    "squash" to R.string.pr_merge_method_squash,
+                    "rebase" to R.string.pr_merge_method_rebase,
+                ).forEach { (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { method = value }
+                            .padding(vertical = Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = method == value, onClick = { method = value })
+                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                val stateLabel = mergeStateLabel(detail)
+                if (stateLabel != null) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        stringResource(stateLabel),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (detail.mergeable == false) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(method) },
+                enabled = !merging && detail.mergeable != false,
+            ) {
+                if (merging) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(16.dp))
+                } else {
+                    Text(stringResource(R.string.pr_merge_confirm))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !merging) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@StringRes
+private fun mergeStateLabel(detail: IssueDetailUi): Int? = when (detail.mergeableState) {
+    "dirty" -> R.string.pr_state_conflict
+    "behind" -> R.string.pr_state_behind
+    "blocked", "draft" -> R.string.pr_state_blocked
+    "clean", "unstable", "has_hooks" -> R.string.pr_state_clean
+    else -> if (detail.mergeable == false) R.string.pr_state_conflict else null
 }
 
 private fun reactionCount(reactions: com.gityou.app.data.remote.dto.ReactionsSummary, content: String): Int =

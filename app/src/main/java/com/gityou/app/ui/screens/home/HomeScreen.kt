@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AssignmentInd
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -42,6 +43,7 @@ fun HomeScreen(
     onOpenRepo: (String, String) -> Unit,
     onOpenSettings: () -> Unit,
     onCreateRepo: () -> Unit,
+    onOpenMyWork: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -58,6 +60,15 @@ fun HomeScreen(
                     Text(stringResource(R.string.app_name))
                 },
                 actions = {
+                    // The reason most sessions start: what is waiting for me
+                    // (G-010). Placed before settings so it is reachable with
+                    // the thumb on large screens.
+                    IconButton(onClick = onOpenMyWork) {
+                        Icon(
+                            Icons.Filled.AssignmentInd,
+                            contentDescription = stringResource(R.string.my_work_title),
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title))
                     }

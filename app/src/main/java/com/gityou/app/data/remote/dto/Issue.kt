@@ -1,5 +1,6 @@
 package com.gityou.app.data.remote.dto
 
+import com.gityou.app.data.util.GitHubUrls
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -17,8 +18,17 @@ data class Issue(
     @SerialName("comments") val commentCount: Int = 0,
     @SerialName("labels") val labels: List<Label> = emptyList(),
     @SerialName("pull_request") val pullRequest: PullRequestRef? = null,
+    /**
+     * Present in `search/issues` results only.
+     * "https://api.github.com/repos/octocat/Hello-World".
+     */
+    @SerialName("repository_url") val repositoryUrl: String? = null,
 ) {
     val isPullRequest: Boolean get() = pullRequest != null
+
+    /** "owner/name" for search hits, so a row can open its repository (G-010). */
+    val repositoryFullName: String?
+        get() = GitHubUrls.parseApiRepoUrl(repositoryUrl)?.let { "${it.owner}/${it.repo}" }
 }
 
 @Serializable
@@ -80,6 +90,18 @@ data class IssueLabelsRequest(
     @SerialName("labels") val labels: List<String>,
 )
 
+/**
+ * Body for `PUT /pulls/{number}/merge`. [sha] pins the head commit so a merge
+ * cannot silently include commits the user never saw (G-014).
+ */
+@Serializable
+data class MergePullRequestRequest(
+    @SerialName("commit_title") val commitTitle: String? = null,
+    @SerialName("commit_message") val commitMessage: String? = null,
+    @SerialName("sha") val sha: String? = null,
+    @SerialName("merge_method") val mergeMethod: String = "merge",
+)
+
 /** Body for `PATCH /issues/comments/{id}`. */
 @Serializable
 data class UpdateCommentRequest(
@@ -113,4 +135,12 @@ data class PullRequest(
     @SerialName("changed_files") val changedFiles: Int = 0,
     @SerialName("head") val head: BranchRef? = null,
     @SerialName("base") val base: BranchRef? = null,
+    /**
+     * `true` / `false` once GitHub finished computing, `null` while unknown
+     * ("unknown" is returned as null by the API and means "ask again").
+     */
+    @SerialName("mergeable") val mergeable: Boolean? = null,
+    @SerialName("mergeable_state") val mergeableState: String? = null,
+    @SerialName("review_comments") val reviewComments: Int = 0,
+    @SerialName("commits") val commitCount: Int = 0,
 )

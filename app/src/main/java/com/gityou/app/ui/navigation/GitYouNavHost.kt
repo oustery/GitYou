@@ -23,6 +23,7 @@ import com.gityou.app.ui.screens.creation.NewRepoScreen
 import com.gityou.app.ui.screens.home.HomeScreen
 import com.gityou.app.ui.screens.issue.IssueDetailScreen
 import com.gityou.app.ui.screens.issue.NewIssueScreen
+import com.gityou.app.ui.screens.mywork.MyWorkScreen
 import com.gityou.app.ui.screens.notifications.NotificationsScreen
 import com.gityou.app.ui.screens.profile.ProfileScreen
 import com.gityou.app.ui.screens.releases.ReleasesScreen
@@ -81,6 +82,7 @@ fun GitYouNavHost(
                 onOpenRepo = { owner, name -> navController.navigate(Route.repo(owner, name)) },
                 onOpenSettings = { navController.navigate(Route.SETTINGS) },
                 onCreateRepo = { navController.navigate(Route.NEW_REPO) },
+                onOpenMyWork = { navController.navigate(Route.MY_WORK) },
             )
         }
         composable(Route.SEARCH) {
@@ -109,6 +111,14 @@ fun GitYouNavHost(
         }
         composable(Route.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Route.MY_WORK) {
+            MyWorkScreen(
+                onBack = { navController.popBackStack() },
+                onOpenIssue = { owner, name, number, isPull ->
+                    navController.navigate(Route.issue(owner, name, number, isPull))
+                },
+            )
         }
         composable(Route.REPO) { entry ->
             val owner = entry.arguments?.getString("owner").orEmpty()

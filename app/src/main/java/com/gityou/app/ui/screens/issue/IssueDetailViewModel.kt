@@ -41,6 +41,11 @@ data class IssueDetailUi(
     val changedFiles: Int = 0,
     val headRef: String? = null,
     val baseRef: String? = null,
+    /** false = GitHub computed a conflict; null = still unknown. */
+    val mergeable: Boolean? = null,
+    val mergeableState: String? = null,
+    /** Head commit the merge is pinned to (G-014). */
+    val headSha: String? = null,
 )
 
 data class IssueDetailScreenState(
@@ -52,6 +57,8 @@ data class IssueDetailScreenState(
     val reviews: List<PrReview> = emptyList(),
     /** Full label palette of the repository, for the label picker dialog. */
     val availableLabels: List<Label> = emptyList(),
+    /** A merge request is in flight. */
+    val merging: Boolean = false,
 )
 
 @HiltViewModel
@@ -107,6 +114,9 @@ class IssueDetailViewModel @Inject constructor(
                             changedFiles = pull.changedFiles,
                             headRef = pull.head?.ref,
                             baseRef = pull.base?.ref,
+                            mergeable = pull.mergeable,
+                            mergeableState = pull.mergeableState,
+                            headSha = pull.head?.sha,
                         )
                     }
                 } else {
@@ -307,6 +317,42 @@ class IssueDetailViewModel @Inject constructor(
     // ---- Reviews and reactions ----------------------------------------------
 
     /** Submits APPROVE / REQUEST_CHANGES / COMMENT with an optional summary. */
+    /**
+     * Merges the pull request with [method] (merge / squash / rebase),
+     * pinned to the head commit the user reviewed (G-014).
+     *
+     * Failure is reported through [managementMessage] with a message that says
+     * what to do: a moved branch, a protected branch, or a plain error.
+     */
+    fun merge(method: String) {
+        val current = (_state.value as? UiState.Content)?.value ?: return
+        if (current.merging || current.detail.merged) return
+        val headSha = current.detail.headSha
+        viewModelScope.launch {
+            patch { it.copy(merging = true) }
+            val result = issuesRepository.merge(owner, repoName, number, method, headSha)
+            result.fold(
+                onSuccess = {
+                    patch {
+                        it.copy(
+                            merging = false,
+                            detail = it.detail.copy(state = "closed", merged = true),
+                        )
+                    }
+                    _managementMessage.value = R.string.pr_merged
+                },
+                onFailure = { t ->
+                    patch { it.copy(merging = false) }
+                    _managementMessage.value = when (t) {
+                        is IssuesRepository.MergeConflictException -> R.string.error_merge_conflict
+                        is IssuesRepository.MergeNotAllowedException -> R.string.error_merge_not_allowed
+                        else -> R.string.error_generic_action
+                    }
+                },
+            )
+        }
+    }
+
     fun submitReview(event: String, body: String?) {
         viewModelScope.launch {
             patchBusy(true)

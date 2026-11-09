@@ -336,4 +336,32 @@
     <!-- P1 batch: repository people -->
     <string name="people_title_stargazers">Stargazers</string>
     <string name="forks_title">Forks</string>
+
+    <!-- My work (G-010) -->
+    <string name="my_work_title">My work</string>
+    <string name="my_work_tab_assigned">Assigned</string>
+    <string name="my_work_tab_created">Created</string>
+    <string name="my_work_tab_review">To review</string>
+    <string name="my_work_empty_assigned_title">Nothing assigned to you</string>
+    <string name="my_work_empty_assigned_body">Issues assigned to you across all repositories will appear here.</string>
+    <string name="my_work_empty_created_title">You have no open issues</string>
+    <string name="my_work_empty_created_body">Issues you opened and that are still open will appear here.</string>
+    <string name="my_work_empty_review_title">No reviews waiting</string>
+    <string name="my_work_empty_review_body">Pull requests that ask for your review will appear here.</string>
+
+    <!-- Pull request merge (G-014) -->
+    <string name="pr_merge_action">Merge pull request</string>
+    <string name="pr_merge_sheet_title">Merge #%1$d</string>
+    <string name="pr_merge_method_merge">Create a merge commit</string>
+    <string name="pr_merge_method_squash">Squash and merge</string>
+    <string name="pr_merge_method_rebase">Rebase and merge</string>
+    <string name="pr_merge_confirm">Merge</string>
+    <string name="pr_merged">Pull request merged</string>
+    <string name="pr_merge_hint">Merges the commit you just reviewed; if the branch moved meanwhile, GitHub rejects the merge instead of merging unseen changes.</string>
+    <string name="pr_state_conflict">Has conflicts</string>
+    <string name="pr_state_behind">Behind base branch</string>
+    <string name="pr_state_blocked">Blocked by branch protection</string>
+    <string name="pr_state_clean">Ready to merge</string>
+    <string name="error_merge_conflict">The branch changed since you opened it. Reload and review again.</string>
+    <string name="error_merge_not_allowed">GitHub refused the merge: required checks, review, or branch protection rules.</string>
 </resources>

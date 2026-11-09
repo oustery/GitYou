@@ -26,4 +26,22 @@ class SearchQueriesTest {
     fun `trending sort targets the stars column`() {
         assertEquals("stars", SearchQueries.TRENDING_SORT)
     }
+
+    @Test
+    fun `my work queries pin the right qualifiers`() {
+        assertEquals(
+            "assignee:@me is:issue state:open",
+            SearchQueries.myWorkQuery(SearchQueries.MyWorkTab.ASSIGNED),
+        )
+        assertEquals(
+            "author:@me is:issue state:open",
+            SearchQueries.myWorkQuery(SearchQueries.MyWorkTab.CREATED),
+        )
+        // Review requests are pull requests only.
+        assertEquals(
+            "review-requested:@me is:pr state:open",
+            SearchQueries.myWorkQuery(SearchQueries.MyWorkTab.REVIEW_REQUESTED),
+        )
+        assertEquals("updated", SearchQueries.MY_WORK_SORT)
+    }
 }

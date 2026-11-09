@@ -41,6 +41,7 @@ object Route {
     const val NOTIFICATIONS = "notifications"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
+    const val MY_WORK = "myWork"
 
     const val REPO = "repo/{owner}/{name}"
     const val ISSUE = "issue/{owner}/{name}/{number}?isPull={isPull}"

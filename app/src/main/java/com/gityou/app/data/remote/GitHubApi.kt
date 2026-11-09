@@ -14,6 +14,7 @@ import com.gityou.app.data.remote.dto.Gist
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.IssueLabelsRequest
 import com.gityou.app.data.remote.dto.IssueStateRequest
+import com.gityou.app.data.remote.dto.MergePullRequestRequest
 import com.gityou.app.data.remote.dto.Label
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.remote.dto.PrReview
@@ -289,6 +290,19 @@ interface GitHubApi {
         @Path("repo") repo: String,
         @Path("number") number: Int,
     ): PullRequest
+
+    /**
+     * Merges a pull request. [sha] makes GitHub reject the merge when the head
+     * moved since the user reviewed the diff, [mergeMethod] is
+     * merge/squash/rebase.
+     */
+    @PUT("repos/{owner}/{repo}/pulls/{number}/merge")
+    suspend fun mergePullRequest(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("number") number: Int,
+        @Body body: MergePullRequestRequest,
+    ): Response<Unit>
 
     // ---- Commits and diffs --------------------------------------------------
 

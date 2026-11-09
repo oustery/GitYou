@@ -8,6 +8,7 @@ import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.IssueLabelsRequest
 import com.gityou.app.data.remote.dto.IssueStateRequest
 import com.gityou.app.data.remote.dto.Label
+import com.gityou.app.data.remote.dto.MergePullRequestRequest
 import com.gityou.app.data.remote.dto.PrReview
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Reaction
@@ -93,6 +94,41 @@ class IssuesRepository @Inject constructor(
 
     suspend fun submitReview(owner: String, name: String, number: Int, event: String, body: String?): PrReview =
         api.submitReview(owner, name, number, ReviewRequest(event = event, body = body))
+
+    /**
+     * Merges a pull request. [headSha] pins the commit the user reviewed;
+     * GitHub answers 409 when the branch moved since (G-014).
+     */
+    suspend fun merge(
+        owner: String,
+        name: String,
+        number: Int,
+        method: String,
+        headSha: String?,
+    ) = safeCall {
+        val response = api.mergePullRequest(
+            owner,
+            name,
+            number,
+            MergePullRequestRequest(
+                sha = headSha,
+                mergeMethod = method,
+            ),
+        )
+        when {
+            response.isSuccessful -> Unit
+            409 -> throw MergeConflictException()
+            405 -> throw MergeNotAllowedException()
+            422 -> throw MergeNotAllowedException()
+            else -> throw HttpException(response)
+        }
+    }
+
+    /** The head branch moved (or a merge is already in flight). */
+    class MergeConflictException : Exception("merge conflict")
+
+    /** Branch protection / required checks / permissions refuse the merge. */
+    class MergeNotAllowedException : Exception("merge not allowed")
 
     suspend fun react(commentId: Long, content: String): Reaction =
         api.reactToComment(commentId, ReactionRequest(content))
