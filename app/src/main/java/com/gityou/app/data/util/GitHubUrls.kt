@@ -62,6 +62,46 @@ object GitHubUrls {
     )
 
     /**
+     * Any in-app destination a github.com link can point at (G-007): a
+     * repository, an issue/PR thread, or a user profile. Anything else
+     * (`/blob/...`, `/releases`, gists, external hosts) stays in the browser.
+     */
+    sealed interface LinkTarget {
+        data class Repo(val owner: String, val repo: String) : LinkTarget
+        data class Thread(val ref: IssueRef) : LinkTarget
+        data class User(val login: String) : LinkTarget
+    }
+
+    /** Path segments under github.com that are not a user profile. */
+    private val RESERVED_LOGINS = RESERVED_OWNER_PATHS + setOf("orgs", "users", "gists", "login")
+
+    private val pathRegex = Regex("^https://github\\.com/([^/?#]+)(?:/([^/?#]+))?")
+
+    /**
+     * Maps a link found in rendered markdown to an in-app screen (G-007).
+     * Links to issues and PRs are how discussion threads reference each other,
+     * so sending the user to the browser breaks the reading flow. Everything
+     * the app cannot render (`/blob/...`, `/releases`, `/settings`, gists and
+     * any non-GitHub host) returns null and stays external.
+     */
+    fun routeLink(url: String?): LinkTarget? {
+        if (url.isNullOrBlank()) return null
+        val trimmed = url.trim().substringBefore('#').substringBefore('?')
+        parseIssueUrl(trimmed)?.let { return LinkTarget.Thread(it) }
+        val match = pathRegex.find(trimmed) ?: return null
+        val owner = match.groupValues[1]
+        val second = match.groupValues[2]
+        if (owner.lowercase() in RESERVED_LOGINS) return null
+        if (second.isEmpty()) return LinkTarget.User(owner)
+        // Deeper paths (/blob/, /tree/, /releases/, /actions) need a view the
+        // app does not have; opening the repository instead would silently
+        // drop the user's destination, so they stay in the browser.
+        val rest = trimmed.removePrefix(match.value).trim('/')
+        if (rest.isNotEmpty()) return null
+        return LinkTarget.Repo(owner, second)
+    }
+
+    /**
      * "https://github.com/octocat/repo/pull/42" ->
      * IssueRef("octocat", "repo", 42, isPull = true). Null if the URL is not
      * a recognizable issue/PR page.

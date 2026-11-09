@@ -39,7 +39,6 @@ import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.IssueRow
 import com.gityou.app.ui.components.LoadMoreFooter
 import com.gityou.app.ui.components.StateScreen
-import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.appHaptics
 import com.gityou.app.ui.theme.Spacing
 

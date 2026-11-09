@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
@@ -34,6 +33,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gityou.app.R
+import com.gityou.app.data.util.DeepLinkRouting
 import com.gityou.app.ui.components.LocalHapticsEnabled
 import com.gityou.app.ui.components.LocalMarkdownFactory
 import com.gityou.app.ui.components.LocalRenderMarkdown
@@ -56,6 +56,8 @@ fun GitYouApp(
     val appState by appViewModel.appState.collectAsStateWithLifecycle()
     val settings by appViewModel.settings.collectAsStateWithLifecycle()
     val unreadCount by appViewModel.unreadCount.collectAsStateWithLifecycle()
+    val pendingRoute by appViewModel.pendingRoute.collectAsStateWithLifecycle()
+    val pendingShare by appViewModel.pendingShare.collectAsStateWithLifecycle()
 
     // The in-app text scale multiplies the system font scale; markdown
     // views and every Material text follow it consistently.
@@ -87,6 +89,10 @@ fun GitYouApp(
                         unreadCount = unreadCount,
                         defaultTab = Route.defaultTabRoute(settings.defaultTab),
                         onRefreshUnread = appViewModel::refreshUnread,
+                        pendingRoute = pendingRoute,
+                        onPendingRouteHandled = appViewModel::consumePendingRoute,
+                        pendingShare = pendingShare,
+                        onPendingShareHandled = appViewModel::consumePendingShare,
                     )
                 }
             }
@@ -99,6 +105,10 @@ private fun MainScaffold(
     unreadCount: Int,
     defaultTab: String,
     onRefreshUnread: () -> Unit,
+    pendingRoute: String?,
+    onPendingRouteHandled: () -> Unit,
+    pendingShare: String?,
+    onPendingShareHandled: () -> Unit,
 ) {
     val navController: NavHostController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -121,6 +131,30 @@ private fun MainScaffold(
     // is entirely up to the user.
     LaunchedEffect(Unit) {
         if (defaultTab != Route.HOME) navController.navigateTopLevel(defaultTab)
+    }
+
+    // An App Link that arrived before sign-in is replayed here, once the graph
+    // exists (G-012). It wins over the default tab: the user asked for that
+    // exact screen by tapping a link.
+    LaunchedEffect(pendingRoute) {
+        val route = pendingRoute ?: return@LaunchedEffect
+        navController.navigate(route)
+        onPendingRouteHandled()
+    }
+
+    // "Share to GitYou" mostly carries a link (browsers append the page URL),
+    // so it opens that screen; text without a GitHub link has no destination
+    // the app can render and is dropped instead of opening a wrong screen.
+    LaunchedEffect(pendingShare) {
+        val text = pendingShare ?: return@LaunchedEffect
+        val route = DeepLinkRouting.route(
+            url = text,
+            issueRoute = Route::issue,
+            repoRoute = Route::repo,
+            userRoute = Route::user,
+        )
+        if (route != null) navController.navigate(route)
+        onPendingShareHandled()
     }
 
     NavigationSuiteScaffold(

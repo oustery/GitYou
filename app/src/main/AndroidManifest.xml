@@ -27,6 +27,28 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- App Links (G-012): a github.com link from Slack, mail or the
+                 browser opens in the client instead of being lost to the web
+                 page. Only the paths the app can render are claimed; blob/
+                 tree/releases stay in the browser. android:autoVerify makes
+                 Android confirm the domain association silently. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="github.com" />
+                <data android:pathPattern="/.*/.*" />
+            </intent-filter>
+
+            <!-- "Share to GitYou": a shared link or text becomes a draft
+                 issue (G-012). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider

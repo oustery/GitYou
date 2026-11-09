@@ -26,6 +26,8 @@ data class IssueDetailUi(
     val number: Int,
     val title: String,
     val state: String,
+    /** Public page URL, for "copy link" (G-008). */
+    val htmlUrl: String? = null,
     val body: String?,
     val authorLogin: String,
     val authorAvatar: String?,
@@ -101,6 +103,7 @@ class IssueDetailViewModel @Inject constructor(
                             number = pull.number,
                             title = pull.title,
                             state = pull.state,
+                            htmlUrl = pull.htmlUrl,
                             body = pull.body,
                             authorLogin = pull.user?.login ?: "",
                             authorAvatar = pull.user?.avatarUrl,
@@ -126,6 +129,7 @@ class IssueDetailViewModel @Inject constructor(
                             number = issue.number,
                             title = issue.title,
                             state = issue.state,
+                            htmlUrl = issue.htmlUrl,
                             body = issue.body,
                             authorLogin = issue.user?.login ?: "",
                             authorAvatar = issue.user?.avatarUrl,
@@ -205,6 +209,46 @@ class IssueDetailViewModel @Inject constructor(
     }
 
     // ---- Management: state, labels, comments --------------------------------
+
+    /**
+     * Edits the issue title and body (G-008). The screen pre-fills the dialog
+     * with the current values, so an empty body here means "make it empty",
+     * not "leave it alone".
+     */
+    fun editIssue(title: String, body: String) {
+        val current = (_state.value as? UiState.Content)?.value ?: return
+        if (current.busy) return
+        viewModelScope.launch {
+            patchBusy(true)
+            val result = safeCall {
+                issuesRepository.updateIssue(
+                    owner = owner,
+                    name = repoName,
+                    number = number,
+                    title = title.trim().ifBlank { null },
+                    body = body,
+                )
+            }
+            result.fold(
+                onSuccess = { updated ->
+                    patch {
+                        it.copy(
+                            busy = false,
+                            detail = it.detail.copy(
+                                title = updated.title,
+                                body = updated.body,
+                            ),
+                        )
+                    }
+                    _managementMessage.value = R.string.issue_updated
+                },
+                onFailure = {
+                    patchBusy(false)
+                    _managementMessage.value = R.string.error_generic_action
+                },
+            )
+        }
+    }
 
     /** Closes an open issue/PR, reopens a closed one. */
     fun toggleIssueState() {

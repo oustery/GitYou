@@ -264,6 +264,7 @@
     <string name="commits_title">Commits</string>
     <string name="diff_no_files_title">No file changes</string>
     <string name="diff_no_files_body">This commit or pull request does not change any files.</string>
+    <string name="pull_files_action_short">Files changed</string>
     <string name="pull_files_action">Files changed (%1$d)</string>
 
     <!-- P0 batch: issue management -->
@@ -271,6 +272,13 @@
     <string name="issue_action_reopen">Reopen issue</string>
     <string name="issue_state_changed">State updated</string>
     <string name="issue_edit_labels">Edit labels</string>
+    <string name="issue_edit_action">Edit issue</string>
+    <string name="issue_link_copy">Copy link</string>
+    <string name="issue_link_copied">Link copied</string>
+    <string name="issue_edit_title">Edit issue</string>
+    <string name="issue_edit_title_label">Title</string>
+    <string name="issue_edit_body_label">Description</string>
+    <string name="issue_updated">Issue updated</string>
     <string name="issue_labels_empty">No labels in this repository</string>
     <string name="comment_edit">Edit</string>
     <string name="comment_delete">Delete</string>

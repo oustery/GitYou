@@ -15,6 +15,7 @@ import com.gityou.app.data.remote.dto.Reaction
 import com.gityou.app.data.remote.dto.ReactionRequest
 import com.gityou.app.data.remote.dto.ReviewRequest
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
+import com.gityou.app.data.remote.dto.UpdateIssueRequest
 import com.gityou.app.data.util.LinkHeaderParser
 import com.gityou.app.data.util.safeCall
 import retrofit2.HttpException
@@ -62,6 +63,21 @@ class IssuesRepository @Inject constructor(
 
     suspend fun setIssueState(owner: String, name: String, number: Int, state: String): Issue =
         api.updateIssueState(owner, name, number, IssueStateRequest(state))
+
+    /** Edits the issue title/body/assignees; null arguments stay unchanged. */
+    suspend fun updateIssue(
+        owner: String,
+        name: String,
+        number: Int,
+        title: String? = null,
+        body: String? = null,
+        assignees: List<String>? = null,
+    ): Issue = api.updateIssue(
+        owner,
+        name,
+        number,
+        UpdateIssueRequest(title = title, body = body, assignees = assignees),
+    )
 
     suspend fun replaceIssueLabels(
         owner: String,

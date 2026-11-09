@@ -29,6 +29,7 @@ import com.gityou.app.data.remote.dto.SearchReposResponse
 import com.gityou.app.data.remote.dto.SearchUsersResponse
 import com.gityou.app.data.remote.dto.Tag
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
+import com.gityou.app.data.remote.dto.UpdateIssueRequest
 import com.gityou.app.data.remote.dto.User
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -344,6 +345,15 @@ interface GitHubApi {
         @Path("repo") repo: String,
         @Path("number") number: Int,
         @Body body: IssueStateRequest,
+    ): Issue
+
+    /** Edits title/body/assignees/milestone; absent fields are left alone. */
+    @PATCH("repos/{owner}/{repo}/issues/{number}")
+    suspend fun updateIssue(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("number") number: Int,
+        @Body body: UpdateIssueRequest,
     ): Issue
 
     @PATCH("repos/{owner}/{repo}/issues/{number}")

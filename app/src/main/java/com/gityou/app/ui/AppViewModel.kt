@@ -1,11 +1,14 @@
 package com.gityou.app.ui
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.store.TokenStore
+import com.gityou.app.data.util.DeepLinkRouting
+import com.gityou.app.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -42,6 +45,18 @@ class AppViewModel @Inject constructor(
      */
     val unreadCount: StateFlow<Int> = tokenStore.unreadCount
 
+    /**
+     * Navigation route requested by an inbound App Link (G-012), held until
+     * the UI is signed in and the NavController exists. Drained by
+     * [consumePendingRoute].
+     */
+    private val _pendingRoute = MutableStateFlow<String?>(null)
+    val pendingRoute: StateFlow<String?> = _pendingRoute.asStateFlow()
+
+    /** Text shared into the app ("Share to GitYou"), offered as a new issue. */
+    private val _pendingShare = MutableStateFlow<String?>(null)
+    val pendingShare: StateFlow<String?> = _pendingShare.asStateFlow()
+
     init {
         viewModelScope.launch {
             tokenStore.settingsFlow.collect { _settings.value = it }
@@ -74,6 +89,34 @@ class AppViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** Routes an inbound intent; called by the Activity on create and on new intent. */
+    fun onSubmit(intent: Intent?) {
+        if (intent == null) return
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                val data = intent.dataString ?: return
+                _pendingRoute.value = DeepLinkRouting.route(
+                    url = data,
+                    issueRoute = Route::issue,
+                    repoRoute = Route::repo,
+                    userRoute = Route::user,
+                )
+            }
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                _pendingShare.value = DeepLinkRouting.firstGitHubUrl(text) ?: text?.trim()
+            }
+        }
+    }
+
+    fun consumePendingRoute() {
+        _pendingRoute.value = null
+    }
+
+    fun consumePendingShare() {
+        _pendingShare.value = null
     }
 
     /**

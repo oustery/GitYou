@@ -91,6 +91,19 @@ data class IssueLabelsRequest(
 )
 
 /**
+ * Body for `PATCH /issues/{number}` — editing the issue itself (G-008).
+ * Every field is optional: GitHub applies only what is present, so a title-only
+ * edit cannot accidentally clear the body.
+ */
+@Serializable
+data class UpdateIssueRequest(
+    @SerialName("title") val title: String? = null,
+    @SerialName("body") val body: String? = null,
+    @SerialName("assignees") val assignees: List<String>? = null,
+    @SerialName("milestone") val milestone: Int? = null,
+)
+
+/**
  * Body for `PUT /pulls/{number}/merge`. [sha] pins the head commit so a merge
  * cannot silently include commits the user never saw (G-014).
  */

@@ -267,6 +267,7 @@
     <string name="commits_title">Коммиты</string>
     <string name="diff_no_files_title">Нет изменений в файлах</string>
     <string name="diff_no_files_body">Этот коммит или pull request не меняет файлов.</string>
+    <string name="pull_files_action_short">Изменённые файлы</string>
     <string name="pull_files_action">Изменённые файлы (%1$d)</string>
 
     <!-- P0 batch: issue management -->
@@ -274,6 +275,13 @@
     <string name="issue_action_reopen">Переоткрыть задачу</string>
     <string name="issue_state_changed">Статус обновлён</string>
     <string name="issue_edit_labels">Изменить метки</string>
+    <string name="issue_edit_action">Редактировать issue</string>
+    <string name="issue_link_copy">Скопировать ссылку</string>
+    <string name="issue_link_copied">Ссылка скопирована</string>
+    <string name="issue_edit_title">Редактирование issue</string>
+    <string name="issue_edit_title_label">Заголовок</string>
+    <string name="issue_edit_body_label">Описание</string>
+    <string name="issue_updated">Issue обновлён</string>
     <string name="issue_labels_empty">В репозитории нет меток</string>
     <string name="comment_edit">Редактировать</string>
     <string name="comment_delete">Удалить</string>

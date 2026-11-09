@@ -1,16 +1,19 @@
 package com.gityou.app
 
 import android.app.LocaleManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.LocaleList
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.gityou.app.data.store.TokenStore
+import com.gityou.app.ui.AppViewModel
 import com.gityou.app.ui.GitYouApp
 import com.gityou.app.ui.components.MarkdownFactory
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,15 +32,34 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var markdownFactory: MarkdownFactory
 
+    /**
+     * Inbound App Links and shares (G-012) are parsed by the root ViewModel,
+     * which survives configuration changes and remembers the request until the
+     * user is signed in.
+     */
+    private val appViewModel: AppViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         observeLanguageSetting()
+        appViewModel.onSubmit(intent)
         setContent {
             GitYouApp(
                 markdownFactory = markdownFactory,
+                appViewModel = appViewModel,
             )
         }
+    }
+
+    /**
+     * `launchMode` stays standard, so a second App Link starts a new instance
+     * only when the task was finished; this covers the warm case.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        appViewModel.onSubmit(intent)
     }
 
     /**

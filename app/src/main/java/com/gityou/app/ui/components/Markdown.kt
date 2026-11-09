@@ -150,6 +150,14 @@ val LocalMarkdownFactory = staticCompositionLocalOf<MarkdownFactory> {
 val LocalRenderMarkdown = staticCompositionLocalOf { true }
 
 /**
+ * Handles a link tapped inside rendered markdown (G-007). The host screen
+ * decides which github.com URLs it can open itself (repository, issue, PR,
+ * profile) and which ones belong in the browser; returning false keeps the
+ * default "open externally" behaviour.
+ */
+val LocalMarkdownLinkHandler = staticCompositionLocalOf<(String) -> Boolean> { { false } }
+
+/**
  * Theme-aware markdown renderer for issue bodies, comments and READMEs.
  * HTML leaks (`<details>`, `<summary>`) are normalized by
  * [com.gityou.app.data.util.MarkdownPreprocessor] before parsing.
@@ -165,7 +173,9 @@ fun MarkdownText(
     textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     preprocess: Boolean = true,
     selectable: Boolean = false,
+    onLinkClick: ((String) -> Boolean)? = null,
 ) {
+    val linkHandler = onLinkClick ?: LocalMarkdownLinkHandler.current
     // The "Render Markdown" setting falls back to plain text everywhere.
     if (!LocalRenderMarkdown.current) {
         Text(
@@ -192,6 +202,10 @@ fun MarkdownText(
             TextView(ctx).apply {
                 movementMethod = LinkMovementMethod.getInstance()
                 highlightColor = android.graphics.Color.TRANSPARENT
+                // Links that map to an app screen are handled here; anything
+                // else returns false and falls through to the browser.
+                isClickable = true
+                setOnTouchListener(MarkdownLinkTouchListener(linkHandler))
                 // The branded variable font applies to the View side too, so
                 // READMEs, issue bodies and comments share one type voice
                 // with the rest of the UI (E-003).
