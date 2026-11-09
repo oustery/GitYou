@@ -105,7 +105,7 @@ class IssuesRepository @Inject constructor(
         number: Int,
         method: String,
         headSha: String?,
-    ) = safeCall {
+    ): Result<Unit> = safeCall {
         val response = api.mergePullRequest(
             owner,
             name,
@@ -117,9 +117,10 @@ class IssuesRepository @Inject constructor(
         )
         when {
             response.isSuccessful -> Unit
-            409 -> throw MergeConflictException()
-            405 -> throw MergeNotAllowedException()
-            422 -> throw MergeNotAllowedException()
+            response.code() == 409 -> throw MergeConflictException()
+            // 405 "merge not allowed" and 422 "not mergeable" (protection,
+            // required checks, draft) both mean: the user cannot merge now.
+            response.code() == 405 || response.code() == 422 -> throw MergeNotAllowedException()
             else -> throw HttpException(response)
         }
     }

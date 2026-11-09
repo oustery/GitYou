@@ -15,132 +15,136 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/** Pagination state of one tab. */
 data class MyWorkTabUi(
     val items: List<Issue> = emptyList(),
     val nextPage: Int? = 1,
+    /** A first-page request is in flight; drives the pull-to-refresh spinner. */
+    val refreshing: Boolean = false,
     val loadingMore: Boolean = false,
     val loadMoreFailed: Boolean = false,
+    /** At least one successful fetch, so the list may be shown instead of a spinner. */
+    val loadedOnce: Boolean = false,
 )
 
 data class MyWorkUi(
     val tab: SearchQueries.MyWorkTab = SearchQueries.MyWorkTab.ASSIGNED,
-    val assigned: MyWorkTabUi = MyWorkTabUi(),
-    val created: MyWorkTabUi = MyWorkTabUi(),
-    val reviewRequested: MyWorkTabUi = MyWorkTabUi(),
+    val tabs: Map<SearchQueries.MyWorkTab, MyWorkTabUi> = emptyMap(),
 ) {
-    fun current(): MyWorkTabUi = when (tab) {
-        SearchQueries.MyWorkTab.ASSIGNED -> assigned
-        SearchQueries.MyWorkTab.CREATED -> created
-        SearchQueries.MyWorkTab.REVIEW_REQUESTED -> reviewRequested
-    }
-
-    fun withCurrent(update: MyWorkTabUi): MyWorkUi = when (tab) {
-        SearchQueries.MyWorkTab.ASSIGNED -> copy(assigned = update)
-        SearchQueries.MyWorkTab.CREATED -> copy(created = update)
-        SearchQueries.MyWorkTab.REVIEW_REQUESTED -> copy(reviewRequested = update)
-    }
+    fun current(): MyWorkTabUi = tabs[tab] ?: MyWorkTabUi()
 }
 
 /**
  * The "My work" hub (G-010): what is assigned to me, what I created, and what
- * waits for my review. Each tab keeps its own list and pagination state so
- * switching tabs never loses a scroll position or re-queries the API.
+ * waits for my review. Each tab keeps its own list and pagination cursor, so
+ * switching tabs never loses state and never re-queries the same page.
+ *
+ * State is assembled from the tab map on every change instead of being patched
+ * in place — a refresh that finishes after a tab switch must not write one
+ * tab's issues into another tab's list.
  */
 @HiltViewModel
 class MyWorkViewModel @Inject constructor(
     private val reposRepository: ReposRepository,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow<UiState<MyWorkUi>>(UiState.Content(MyWorkUi()))
+    private val _state = MutableStateFlow<UiState<MyWorkUi>>(UiState.Loading)
     val state: StateFlow<UiState<MyWorkUi>> = _state.asStateFlow()
 
-    /** Tab that has been fetched at least once; null until the first load. */
-    private val loaded = mutableSetOf<SearchQueries.MyWorkTab>()
+    private var selectedTab = SearchQueries.MyWorkTab.ASSIGNED
+    private val tabs = mutableMapOf<SearchQueries.MyWorkTab, MyWorkTabUi>()
+    private val errors = mutableMapOf<SearchQueries.MyWorkTab, String>()
 
     init {
-        load(SearchQueries.MyWorkTab.ASSIGNED)
+        load(selectedTab)
     }
 
     fun selectTab(tab: SearchQueries.MyWorkTab) {
-        update { it.copy(tab = tab) }
-        if (tab !in loaded) load(tab)
+        selectedTab = tab
+        publish()
+        if (tabs[tab]?.loadedOnce != true) load(tab)
     }
 
     /** Pull-to-refresh: re-fetches the visible tab from the first page. */
     fun refresh() {
-        val tab = current()?.tab ?: SearchQueries.MyWorkTab.ASSIGNED
-        load(tab)
+        load(selectedTab)
     }
 
     fun retry() {
-        refresh()
+        errors.remove(selectedTab)
+        load(selectedTab)
     }
 
     fun loadMore() {
-        val ui = current() ?: return
-        val tabUi = ui.current()
+        val tab = selectedTab
+        val tabUi = tabUi(tab)
         val nextPage = tabUi.nextPage ?: return
-        if (tabUi.loadingMore) return
+        if (tabUi.loadingMore || tabUi.refreshing) return
+        update(tab) { it.copy(loadingMore = true, loadMoreFailed = false) }
         viewModelScope.launch {
-            update { it.withCurrent(it.current().copy(loadingMore = true)) }
-            val page = safeCall { reposRepository.myWork(ui.tab, page = nextPage) }
-            // A refresh or tab switch may have replaced the list meanwhile.
-            val latest = current()?.takeIf { it.tab == ui.tab } ?: return@launch
-            val currentPage = latest.current()
-            update {
-                it.withCurrent(
-                    page.fold(
-                        onSuccess = { p ->
-                            currentPage.copy(
-                                items = currentPage.items + p.items,
-                                nextPage = p.nextPage,
-                                loadingMore = false,
-                                loadMoreFailed = false,
-                            )
-                        },
-                        onFailure = {
-                            currentPage.copy(loadingMore = false, loadMoreFailed = true)
-                        },
-                    ),
+            val page = safeCall { reposRepository.myWork(tab, page = nextPage) }
+            // A refresh of the same tab may have replaced the list meanwhile.
+            val latest = tabUi(tab)
+            update(tab) {
+                page.fold(
+                    onSuccess = { p ->
+                        latest.copy(
+                            items = latest.items + p.items,
+                            nextPage = p.nextPage,
+                            loadingMore = false,
+                            loadMoreFailed = false,
+                        )
+                    },
+                    onFailure = { latest.copy(loadingMore = false, loadMoreFailed = true) },
                 )
             }
         }
     }
 
     private fun load(tab: SearchQueries.MyWorkTab) {
+        if (tabUi(tab).refreshing) return
+        errors.remove(tab)
+        update(tab) { it.copy(refreshing = true, loadMoreFailed = false) }
         viewModelScope.launch {
-            // Only replace the whole screen on the first fetch; later refreshes
-            // keep the list visible instead of flashing a spinner.
-            if (tab !in loaded) {
-                _state.value = UiState.Loading
-            } else {
-                update { it.withCurrent(it.current().copy(loadingMore = false)) }
-            }
             val result = safeCall { reposRepository.myWork(tab, page = 1) }
             result.fold(
                 onSuccess = { page ->
-                    loaded += tab
-                    _state.value = UiState.Content(
-                        (current() ?: MyWorkUi()).withCurrent(
-                            MyWorkTabUi(items = page.items, nextPage = page.nextPage),
-                        ),
-                    )
+                    update(tab) {
+                        MyWorkTabUi(
+                            items = page.items,
+                            nextPage = page.nextPage,
+                            refreshing = false,
+                            loadedOnce = true,
+                        )
+                    }
                 },
                 onFailure = { t ->
-                    // A failed refresh keeps the previously loaded list.
-                    if (tab in loaded) {
-                        update { it.withCurrent(it.current().copy(loadingMore = false)) }
-                    } else {
-                        _state.value = UiState.Error(ApiErrors.keyOf(t))
-                    }
+                    update(tab) { it.copy(refreshing = false) }
+                    // A failed refresh keeps the list that is already on screen;
+                    // only the first fetch of a tab can empty the screen.
+                    if (!tabUi(tab).loadedOnce) errors[tab] = ApiErrors.keyOf(t)
+                    publish()
                 },
             )
         }
     }
 
-    private fun current(): MyWorkUi? = (_state.value as? UiState.Content)?.value
+    private fun tabUi(tab: SearchQueries.MyWorkTab): MyWorkTabUi = tabs[tab] ?: MyWorkTabUi()
 
-    private fun update(block: (MyWorkUi) -> MyWorkUi) {
-        current()?.let { _state.value = UiState.Content(block(it)) }
+    private fun update(tab: SearchQueries.MyWorkTab, block: (MyWorkTabUi) -> MyWorkTabUi) {
+        tabs[tab] = block(tabUi(tab))
+        publish()
+    }
+
+    private fun publish() {
+        val visible = tabUi(selectedTab)
+        val error = errors[selectedTab]
+        _state.value = when {
+            visible.loadedOnce -> UiState.Content(
+                MyWorkUi(tab = selectedTab, tabs = tabs.toMap()),
+            )
+            error != null -> UiState.Error(error)
+            else -> UiState.Loading
+        }
     }
 }

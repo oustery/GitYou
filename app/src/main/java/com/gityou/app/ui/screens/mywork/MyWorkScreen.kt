@@ -74,10 +74,10 @@ fun MyWorkScreen(
     ) { padding ->
         StateScreen(state = state, onRetry = viewModel::retry) { current ->
             val visible = current.current()
-            // No separate "refreshing" flag: the tab keeps its list visible
-            // while the first-page request is in flight (see MyWorkViewModel).
+            // The list stays visible while a refresh is in flight; the spinner
+            // only shows once this tab has content to keep (MyWorkViewModel).
             PullToRefreshBox(
-                isRefreshing = false,
+                isRefreshing = visible.refreshing && visible.loadedOnce,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier.padding(padding),
             ) {
@@ -100,7 +100,9 @@ fun MyWorkScreen(
                         }
                     }
 
-                    if (visible.items.isEmpty()) {
+                    // While the first page of a tab is in flight the spinner is
+                    // the refresh indicator, not an empty state.
+                    if (visible.items.isEmpty() && !visible.refreshing) {
                         EmptyState(
                             icon = emptyIcon(current.tab),
                             title = stringResource(emptyTitle(current.tab)),

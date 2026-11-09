@@ -40,4 +40,14 @@ class GitHubUrlsTest {
         assertNull(GitHubUrls.parseIssueUrl(""))
         assertNull(GitHubUrls.parseIssueUrl(null))
     }
+
+    @Test
+    fun `api repo url feeds the my-work rows`() {
+        // search/issues returns repository_url only; the row needs "owner/name"
+        // to open the issue (G-010).
+        val ref = GitHubUrls.parseApiRepoUrl("https://api.github.com/repos/oustery/GitYou")
+        assertEquals("oustery", ref?.owner)
+        assertEquals("GitYou", ref?.repo)
+        assertNull(GitHubUrls.parseApiRepoUrl("https://github.com/oustery/GitYou"))
+    }
 }
