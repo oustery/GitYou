@@ -16,6 +16,7 @@ import com.gityou.app.data.remote.dto.ReactionRequest
 import com.gityou.app.data.remote.dto.ReviewRequest
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
 import com.gityou.app.data.util.LinkHeaderParser
+import com.gityou.app.data.util.safeCall
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
