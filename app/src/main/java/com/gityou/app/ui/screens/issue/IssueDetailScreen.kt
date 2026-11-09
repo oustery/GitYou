@@ -845,6 +845,7 @@ private fun CommentCard(
  * GitHub thinks of the branch (`mergeable_state`) so a blocked merge is
  * explained before the user taps, not through an error afterwards.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MergeDialog(
     detail: IssueDetailUi,
