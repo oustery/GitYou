@@ -4,9 +4,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -46,6 +54,7 @@ import com.gityou.app.ui.navigation.navigateTopLevel
 import com.gityou.app.ui.screens.auth.AuthScreen
 import com.gityou.app.ui.theme.AccentPalette
 import com.gityou.app.ui.theme.GitYouTheme
+import com.gityou.app.ui.theme.Spacing
 import com.gityou.app.ui.theme.TextScale
 import com.gityou.app.ui.theme.ThemeMode
 
@@ -58,6 +67,7 @@ fun GitYouApp(
     val settings by appViewModel.settings.collectAsStateWithLifecycle()
     val unreadCount by appViewModel.unreadCount.collectAsStateWithLifecycle()
     val locked by appViewModel.locked.collectAsStateWithLifecycle()
+    val offline by appViewModel.offline.collectAsStateWithLifecycle()
     val pendingRoute by appViewModel.pendingRoute.collectAsStateWithLifecycle()
     val pendingShare by appViewModel.pendingShare.collectAsStateWithLifecycle()
 
@@ -84,26 +94,59 @@ fun GitYouApp(
             LocalDensity provides scaledDensity,
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                when (appState) {
-                    AppViewModel.AppState.Loading -> BrandedLoading()
-                    AppViewModel.AppState.SignedOut -> AuthScreen()
-                    // The lock sits between the credential and the content, so
-                    // nothing behind it is composed while locked (G-016).
-                    is AppViewModel.AppState.SignedIn -> if (locked) {
-                        AppLockScreen(onUnlocked = appViewModel::unlock)
-                    } else {
-                        MainScaffold(
-                            unreadCount = unreadCount,
-                            defaultTab = Route.defaultTabRoute(settings.defaultTab),
-                            onRefreshUnread = appViewModel::refreshUnread,
-                            pendingRoute = pendingRoute,
-                            onPendingRouteHandled = appViewModel::consumePendingRoute,
-                            pendingShare = pendingShare,
-                            onPendingShareHandled = appViewModel::consumePendingShare,
-                        )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Cached answers are usable, but the user must know they may
+                    // be stale instead of assuming the data is live (G-013).
+                    if (offline && appState is AppViewModel.AppState.SignedIn && !locked) {
+                        OfflineBanner()
+                    }
+                    when (appState) {
+                        AppViewModel.AppState.Loading -> BrandedLoading()
+                        AppViewModel.AppState.SignedOut -> AuthScreen()
+                        // The lock sits between the credential and the content, so
+                        // nothing behind it is composed while locked (G-016).
+                        is AppViewModel.AppState.SignedIn -> if (locked) {
+                            AppLockScreen(onUnlocked = appViewModel::unlock)
+                        } else {
+                            MainScaffold(
+                                unreadCount = unreadCount,
+                                defaultTab = Route.defaultTabRoute(settings.defaultTab),
+                                onRefreshUnread = appViewModel::refreshUnread,
+                                pendingRoute = pendingRoute,
+                                onPendingRouteHandled = appViewModel::consumePendingRoute,
+                                pendingShare = pendingShare,
+                                onPendingShareHandled = appViewModel::consumePendingShare,
+                            )
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+/** Slim strip above the content: what is shown was read from the cache. */
+@Composable
+private fun OfflineBanner() {
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(Spacing.sm))
+            Text(
+                stringResource(R.string.offline_banner),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
         }
     }
 }

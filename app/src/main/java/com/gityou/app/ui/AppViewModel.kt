@@ -3,6 +3,7 @@ package com.gityou.app.ui
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gityou.app.data.remote.OfflineState
 import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
@@ -22,6 +23,7 @@ import retrofit2.HttpException
 @HiltViewModel
 class AppViewModel @Inject constructor(
     private val tokenStore: TokenStore,
+    private val offlineState: OfflineState,
     private val authRepository: AuthRepository,
     private val notificationsRepository: NotificationsRepository,
 ) : ViewModel() {
@@ -66,6 +68,9 @@ class AppViewModel @Inject constructor(
     /** Text shared into the app ("Share to GitYou"), offered as a new issue. */
     private val _pendingShare = MutableStateFlow<String?>(null)
     val pendingShare: StateFlow<String?> = _pendingShare.asStateFlow()
+
+    /** True while the visible data comes from the offline cache (G-013). */
+    val offline: StateFlow<Boolean> = offlineState.offline
 
     init {
         viewModelScope.launch {

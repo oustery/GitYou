@@ -20,7 +20,8 @@
     <string name="error_forbidden">GitHub отклонил запрос. Проверьте права токена.</string>
     <string name="error_not_found">Не найдено. Возможно, это приватное или удалённое.</string>
     <string name="error_validation">Запрос отклонён. Проверьте введённые данные.</string>
-    <string name="error_network">Нет связи с GitHub. Проверьте сеть.</string>
+        <string name="offline_banner">Показаны сохранённые данные — нет связи с GitHub</string>
+<string name="error_network">Нет связи с GitHub. Проверьте сеть.</string>
     <string name="error_http">GitHub вернул ошибку. Попробуйте позже.</string>
     <string name="error_unknown">Что-то пошло не так. Попробуйте снова.</string>
     <string name="error_generic_action">Действие не выполнено. Попробуйте ещё раз.</string>

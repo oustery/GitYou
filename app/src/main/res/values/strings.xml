@@ -20,7 +20,8 @@
     <string name="error_forbidden">GitHub refused the request. Check token permissions.</string>
     <string name="error_not_found">Not found. It may be private or deleted.</string>
     <string name="error_validation">The request was rejected. Check the entered data.</string>
-    <string name="error_network">No connection to GitHub. Check the network.</string>
+        <string name="offline_banner">Showing saved data — the connection to GitHub is down</string>
+<string name="error_network">No connection to GitHub. Check the network.</string>
     <string name="error_http">GitHub returned an error. Try again later.</string>
     <string name="error_unknown">Something went wrong. Try again.</string>
     <string name="error_generic_action">The action failed. Try again.</string>

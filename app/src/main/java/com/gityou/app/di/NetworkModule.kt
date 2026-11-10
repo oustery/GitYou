@@ -1,12 +1,16 @@
 package com.gityou.app.di
 
+import android.content.Context
 import com.gityou.app.BuildConfig
 import com.gityou.app.data.remote.AuthApi
 import com.gityou.app.data.remote.AuthInterceptor
 import com.gityou.app.data.remote.GitHubApi
+import com.gityou.app.data.remote.OfflineCache
+import com.gityou.app.data.remote.OfflineState
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
@@ -60,7 +64,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient =
+    fun provideOkHttpClient(
+        @ApplicationContext context: Context,
+        authInterceptor: AuthInterceptor,
+        offlineState: OfflineState,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(
@@ -75,6 +83,9 @@ object NetworkModule {
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+            // Disk cache + offline fallback (G-013): what was read once stays
+            // readable without a network.
+            .let { OfflineCache.configure(context, it, offlineState) }
 
     /** Unauthenticated client for arbitrary image hosts; no token, no logging. */
     @Provides
