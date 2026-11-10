@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.gityou.app.BuildConfig
@@ -15,15 +16,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Persisted app preferences and the GitHub access token. */
 @Singleton
 class TokenStore @Inject constructor(
     @ApplicationContext context: Context,
+    private val tokenCipher: TokenCipher,
 ) {
     data class AppSettings(
         val themeMode: String = "system",
@@ -37,6 +44,14 @@ class TokenStore @Inject constructor(
         val renderMarkdown: Boolean = true,
         val hapticsEnabled: Boolean = true,
         val markReadOnOpen: Boolean = true,
+        /**
+         * Ask for a device credential before showing the app (G-016). The
+         * stored token grants write access to every repository the user can
+         * push to; a lost unlocked phone must not hand that over.
+         */
+        val biometricLock: Boolean = false,
+        /** Minutes in the background before the lock re-arms; 0 = immediately. */
+        val lockTimeoutMinutes: Int = 1,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -53,6 +68,9 @@ class TokenStore @Inject constructor(
 
     private companion object {
         const val TAG = "TokenStore"
+
+        /** Must match [TokenCipher]'s prefix; kept here to avoid a hard dependency. */
+        const val ENCRYPTED_PREFIX = "enc:v1:"
     }
 
     private object Keys {
@@ -69,22 +87,58 @@ class TokenStore @Inject constructor(
         val RENDER_MARKDOWN = booleanPreferencesKey("render_markdown")
         val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val MARK_READ_ON_OPEN = booleanPreferencesKey("mark_read_on_open")
+        val BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
+        val LOCK_TIMEOUT = intPreferencesKey("lock_timeout_minutes")
     }
 
     @Volatile
     private var cachedToken: String? = null
 
+    /**
+     * Single source of truth for the unread badge (G-004). The badge used to
+     * live only in AppViewModel and was recomputed from the first notification
+     * page, so "mark all read" left a stale number behind. Every place that
+     * learns the true count publishes it here; every badge reads it.
+     */
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+
     init {
         scope.launch {
             dataStore.data
                 .catch { cause -> logDataStoreError("token cache", cause) }
-                .collect { prefs -> cachedToken = prefs[Keys.TOKEN] }
+                .collect { prefs ->
+                    cachedToken = withContext(Dispatchers.IO) {
+                        tokenCipher.decrypt(prefs[Keys.TOKEN])
+                    }
+                }
+        }
+        scope.launch { migratePlaintextToken() }
+    }
+
+    /**
+     * G-002 migration: a token written by an older build sits in DataStore as
+     * plaintext. Encrypt it in place on first run so the upgrade is invisible
+     * to the user and the file stops containing a usable credential.
+     */
+    private suspend fun migratePlaintextToken() {
+        val stored = runCatching { dataStore.data.first()[Keys.TOKEN] }.getOrNull()
+        if (stored.isNullOrBlank() || stored.startsWith(ENCRYPTED_PREFIX)) return
+        val encrypted = withContext(Dispatchers.IO) { tokenCipher.encrypt(stored) }
+        if (encrypted.startsWith(ENCRYPTED_PREFIX)) {
+            dataStore.edit { it[Keys.TOKEN] = encrypted }
+            cachedToken = stored
         }
     }
 
+    /**
+     * Decryption touches the Android Keystore, so the mapping runs on IO
+     * instead of on the collector's (usually main) dispatcher.
+     */
     val tokenFlow: Flow<String?> = dataStore.data
         .catch { cause -> logDataStoreError("token flow", cause) }
-        .map { it[Keys.TOKEN] }
+        .map { tokenCipher.decrypt(it[Keys.TOKEN]) }
+        .flowOn(Dispatchers.IO)
 
     val settingsFlow: Flow<AppSettings> = dataStore.data
         .catch { cause -> logDataStoreError("settings flow", cause) }
@@ -101,10 +155,30 @@ class TokenStore @Inject constructor(
                 renderMarkdown = prefs[Keys.RENDER_MARKDOWN] ?: true,
                 hapticsEnabled = prefs[Keys.HAPTICS_ENABLED] ?: true,
                 markReadOnOpen = prefs[Keys.MARK_READ_ON_OPEN] ?: true,
+                biometricLock = prefs[Keys.BIOMETRIC_LOCK] ?: false,
+                lockTimeoutMinutes = prefs[Keys.LOCK_TIMEOUT] ?: 1,
             )
         }
 
     fun cachedToken(): String? = cachedToken
+
+    /**
+     * Publishes the authoritative unread count. [count] must come from a full
+     * notification fetch (not from a single page) so the badge never shows a
+     * floor of the real number.
+     */
+    fun setUnreadCount(count: Int) {
+        _unreadCount.value = count.coerceAtLeast(0)
+    }
+
+    /** Optimistically drops the badge when the server call has succeeded. */
+    fun decrementUnread(by: Int = 1) {
+        _unreadCount.value = (_unreadCount.value - by).coerceAtLeast(0)
+    }
+
+    fun clearUnread() {
+        _unreadCount.value = 0
+    }
 
     /** In-app override, falling back to the compile-time BuildConfig value. */
     suspend fun clientId(): String {
@@ -114,7 +188,10 @@ class TokenStore @Inject constructor(
 
     suspend fun saveToken(token: String) {
         val trimmed = token.trim()
-        dataStore.edit { it[Keys.TOKEN] = trimmed }
+        // Encrypted at rest with a Keystore-backed key (G-002); encryption is
+        // an IO-bound Keystore operation, never run on the caller's thread.
+        val stored = withContext(Dispatchers.IO) { tokenCipher.encrypt(trimmed) }
+        dataStore.edit { it[Keys.TOKEN] = stored }
         // Update the cache in the same call: the first request after sign-in
         // must already carry the Authorization header (the collector above is
         // asynchronous and would race the network call, F-005).
@@ -123,6 +200,7 @@ class TokenStore @Inject constructor(
 
     suspend fun clearToken() {
         dataStore.edit { it.remove(Keys.TOKEN) }
+        clearUnread()
         // Same race as saveToken: a request fired right after sign-out must
         // not go out with the stale token attached.
         cachedToken = null
@@ -158,6 +236,14 @@ class TokenStore @Inject constructor(
 
     suspend fun saveDefaultTab(tab: String) {
         dataStore.edit { it[Keys.DEFAULT_TAB] = tab }
+    }
+
+    suspend fun saveBiometricLock(enabled: Boolean) {
+        dataStore.edit { it[Keys.BIOMETRIC_LOCK] = enabled }
+    }
+
+    suspend fun saveLockTimeout(minutes: Int) {
+        dataStore.edit { it[Keys.LOCK_TIMEOUT] = minutes.coerceAtLeast(0) }
     }
 
     suspend fun saveAppLanguage(language: String) {

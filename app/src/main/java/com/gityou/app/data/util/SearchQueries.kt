@@ -29,4 +29,21 @@ object SearchQueries {
 
     /** Sort parameter that pairs with [trending] on the repositories endpoint. */
     const val TRENDING_SORT = "stars"
+
+    /**
+     * The three questions a developer opens a GitHub client to answer
+     * ("my work", G-010). Kept as pure builders so the exact syntax stays
+     * unit-tested — GitHub search qualifiers are an API contract.
+     */
+    enum class MyWorkTab { ASSIGNED, CREATED, REVIEW_REQUESTED }
+
+    fun myWorkQuery(tab: MyWorkTab): String = when (tab) {
+        MyWorkTab.ASSIGNED -> "assignee:@me is:issue state:open"
+        MyWorkTab.CREATED -> "author:@me is:issue state:open"
+        // Review requests are pull requests only, and closed ones are noise.
+        MyWorkTab.REVIEW_REQUESTED -> "review-requested:@me is:pr state:open"
+    }
+
+    /** Sort that makes ["my work"] actionable: freshest activity first. */
+    const val MY_WORK_SORT = "updated"
 }

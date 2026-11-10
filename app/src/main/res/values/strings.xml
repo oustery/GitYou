@@ -20,7 +20,8 @@
     <string name="error_forbidden">GitHub refused the request. Check token permissions.</string>
     <string name="error_not_found">Not found. It may be private or deleted.</string>
     <string name="error_validation">The request was rejected. Check the entered data.</string>
-    <string name="error_network">No connection to GitHub. Check the network.</string>
+        <string name="offline_banner">Showing saved data — the connection to GitHub is down</string>
+<string name="error_network">No connection to GitHub. Check the network.</string>
     <string name="error_http">GitHub returned an error. Try again later.</string>
     <string name="error_unknown">Something went wrong. Try again.</string>
     <string name="error_generic_action">The action failed. Try again.</string>
@@ -46,12 +47,12 @@
     <string name="auth_try_again">Try again</string>
     <string name="auth_missing_client_id">Add the OAuth App Client ID to use Device Flow.</string>
     <string name="auth_pat_title">Personal access token</string>
-    <string name="auth_pat_body">Fast alternative: paste a token with repo, read:user and notifications scopes.</string>
+    <string name="auth_pat_body">Fast alternative: paste a token with repo, read:user, notifications and gist scopes.</string>
     <string name="auth_pat_label">github_pat_… or ghp_…</string>
     <string name="auth_show_token">Show token</string>
     <string name="auth_hide_token">Hide token</string>
     <string name="auth_pat_button">Sign in</string>
-    <string name="auth_pat_scopes_hint">Classic tokens need the repo, read:user and notifications scopes.</string>
+    <string name="auth_pat_scopes_hint">Classic tokens need the repo, read:user, notifications and gist scopes.</string>
 
     <!-- Star button -->
     <string name="star_action_add">Star repository</string>
@@ -123,6 +124,13 @@
     <string name="repo_fork_created">Fork created — check your repositories</string>
     <string name="repo_open_in_browser">Open in browser</string>
     <string name="filter_open">Open</string>
+    <string name="issue_filter_assigned_me">Assigned to me</string>
+    <string name="issue_filter_most_commented">Most commented</string>
+    <string name="issue_filter_search_hint">Search in these issues</string>
+    <string name="issue_filter_search_clear">Clear search</string>
+    <string name="filters_clear">Clear filters</string>
+    <string name="issues_filter_empty_title">No matching issues</string>
+    <string name="issues_filter_empty_body">Nothing matches these filters. Clear them to see the full list.</string>
     <string name="filter_closed">Closed</string>
 
     <!-- Issues & pull requests -->
@@ -155,6 +163,19 @@
     <string name="settings_dynamic_color_label">Dynamic color</string>
     <string name="settings_dynamic_color_body">Follow the wallpaper palette (Android 12+)</string>
     <string name="settings_account_section">Account</string>
+    <string name="settings_security_section">Security</string>
+    <string name="settings_lock_label">Lock the app</string>
+    <string name="settings_lock_body">Ask for your device PIN, pattern or biometrics when the app returns from the background. The stored token can write to your repositories.</string>
+    <string name="settings_lock_now">Immediately</string>
+    <string name="settings_lock_after_minutes">After %1$d min</string>
+    <string name="settings_revoke_access">Revoke GitHub access</string>
+    <string name="settings_revoke_access_body">Signing out only forgets the token on this device. To invalidate it on GitHub as well, remove GitYou under Authorized OAuth Apps.</string>
+    <string name="lock_title">GitYou is locked</string>
+    <string name="lock_subtitle">Confirm your device credential to continue</string>
+    <string name="lock_no_credential">This device has no screen lock, so the app cannot be locked.</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_retry">Try again</string>
+    <string name="lock_continue">Continue</string>
     <string name="settings_sign_out">Sign out</string>
     <string name="sign_out_confirm_title">Sign out of GitHub?</string>
     <string name="sign_out_confirm_text">You will need to sign in again to use GitYou on this device.</string>
@@ -264,6 +285,7 @@
     <string name="commits_title">Commits</string>
     <string name="diff_no_files_title">No file changes</string>
     <string name="diff_no_files_body">This commit or pull request does not change any files.</string>
+    <string name="pull_files_action_short">Files changed</string>
     <string name="pull_files_action">Files changed (%1$d)</string>
 
     <!-- P0 batch: issue management -->
@@ -271,6 +293,13 @@
     <string name="issue_action_reopen">Reopen issue</string>
     <string name="issue_state_changed">State updated</string>
     <string name="issue_edit_labels">Edit labels</string>
+    <string name="issue_edit_action">Edit issue</string>
+    <string name="issue_link_copy">Copy link</string>
+    <string name="issue_link_copied">Link copied</string>
+    <string name="issue_edit_title">Edit issue</string>
+    <string name="issue_edit_title_label">Title</string>
+    <string name="issue_edit_body_label">Description</string>
+    <string name="issue_updated">Issue updated</string>
     <string name="issue_labels_empty">No labels in this repository</string>
     <string name="comment_edit">Edit</string>
     <string name="comment_delete">Delete</string>
@@ -336,4 +365,32 @@
     <!-- P1 batch: repository people -->
     <string name="people_title_stargazers">Stargazers</string>
     <string name="forks_title">Forks</string>
+
+    <!-- My work (G-010) -->
+    <string name="my_work_title">My work</string>
+    <string name="my_work_tab_assigned">Assigned</string>
+    <string name="my_work_tab_created">Created</string>
+    <string name="my_work_tab_review">To review</string>
+    <string name="my_work_empty_assigned_title">Nothing assigned to you</string>
+    <string name="my_work_empty_assigned_body">Issues assigned to you across all repositories will appear here.</string>
+    <string name="my_work_empty_created_title">You have no open issues</string>
+    <string name="my_work_empty_created_body">Issues you opened and that are still open will appear here.</string>
+    <string name="my_work_empty_review_title">No reviews waiting</string>
+    <string name="my_work_empty_review_body">Pull requests that ask for your review will appear here.</string>
+
+    <!-- Pull request merge (G-014) -->
+    <string name="pr_merge_action">Merge pull request</string>
+    <string name="pr_merge_sheet_title">Merge #%1$d</string>
+    <string name="pr_merge_method_merge">Create a merge commit</string>
+    <string name="pr_merge_method_squash">Squash and merge</string>
+    <string name="pr_merge_method_rebase">Rebase and merge</string>
+    <string name="pr_merge_confirm">Merge</string>
+    <string name="pr_merged">Pull request merged</string>
+    <string name="pr_merge_hint">Merges the commit you just reviewed; if the branch moved meanwhile, GitHub rejects the merge instead of merging unseen changes.</string>
+    <string name="pr_state_conflict">Has conflicts</string>
+    <string name="pr_state_behind">Behind base branch</string>
+    <string name="pr_state_blocked">Blocked by branch protection</string>
+    <string name="pr_state_clean">Ready to merge</string>
+    <string name="error_merge_conflict">The branch changed since you opened it. Reload and review again.</string>
+    <string name="error_merge_not_allowed">GitHub refused the merge: required checks, review, or branch protection rules.</string>
 </resources>

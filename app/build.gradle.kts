@@ -189,4 +189,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.mockk)
+    // Network behaviour (status codes, Link headers, error mapping) is tested
+    // against real HTTP responses instead of mocks (G-011).
+    testImplementation(libs.okhttp.mockwebserver)
 }

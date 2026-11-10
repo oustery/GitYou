@@ -75,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.util.Formatters
+import com.gityou.app.data.util.NotificationRouting
 import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.components.EmptyState
 import com.gityou.app.ui.components.LoadMoreFooter
@@ -209,12 +210,20 @@ fun NotificationsScreen(
                                         notification = notification,
                                         onClick = {
                                             if (notification.unread && markReadOnOpen) viewModel.markRead(notification)
-                                            viewModel.targetFor(notification)?.let { target ->
-                                                onOpenIssue(target.owner, target.repo, target.number, target.isPull)
-                                            } ?: notification.repository?.fullName?.let { fullName ->
-                                                val owner = fullName.substringBefore('/')
-                                                val repo = fullName.substringAfter('/')
-                                                onOpenRepo(owner, repo)
+                                            // Type-aware routing: only Issue/PR threads open a
+                                            // thread screen, everything else lands on the
+                                            // repository instead of a non-existent issue (G-021).
+                                            when (val destination = viewModel.destinationFor(notification)) {
+                                                is NotificationRouting.Destination.Thread ->
+                                                    onOpenIssue(
+                                                        destination.target.owner,
+                                                        destination.target.repo,
+                                                        destination.target.number,
+                                                        destination.target.isPull,
+                                                    )
+                                                is NotificationRouting.Destination.Repository ->
+                                                    onOpenRepo(destination.owner, destination.repo)
+                                                NotificationRouting.Destination.None -> Unit
                                             }
                                         },
                                         onMarkRead = { viewModel.markRead(notification) },

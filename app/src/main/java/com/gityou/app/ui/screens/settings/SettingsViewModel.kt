@@ -89,6 +89,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { tokenStore.saveMarkReadOnOpen(enabled) }
     }
 
+    fun setBiometricLock(enabled: Boolean) {
+        viewModelScope.launch { tokenStore.saveBiometricLock(enabled) }
+    }
+
+    fun setLockTimeout(minutes: Int) {
+        viewModelScope.launch { tokenStore.saveLockTimeout(minutes) }
+    }
+
     fun signOut() {
         viewModelScope.launch { authRepository.signOut() }
     }

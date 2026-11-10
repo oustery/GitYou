@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -192,6 +194,10 @@ fun EmptyState(
 }
 
 /** Small uppercase section marker that organizes list sections. */
+/**
+ * Section label. Marked as a heading so TalkBack can jump between sections
+ * instead of reading the whole screen linearly (G-006).
+ */
 @Composable
 fun EyebrowLabel(
     text: String,
@@ -201,7 +207,9 @@ fun EyebrowLabel(
         text.uppercase(),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(bottom = Spacing.sm),
+        modifier = modifier
+            .semantics { heading() }
+            .padding(bottom = Spacing.sm),
     )
 }
 

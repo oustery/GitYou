@@ -1,7 +1,6 @@
 package com.gityou.app.data.repo
 
 import com.gityou.app.data.remote.GitHubApi
-import com.gityou.app.data.remote.dto.Branch
 import com.gityou.app.data.remote.dto.CommitDetail
 import com.gityou.app.data.remote.dto.CommitFile
 import com.gityou.app.data.remote.dto.CommitListItem
@@ -36,6 +35,12 @@ class ReposRepository @Inject constructor(
 
         /** NUL-byte scan window for the binary heuristic. */
         const val BINARY_SCAN_BYTES = 8_192
+
+        /**
+         * Guard against a pathological Link header on the PR files endpoint:
+         * 100 pages is 10 000 files, far beyond any reviewer-facing diff.
+         */
+        const val MAX_PULL_FILE_PAGES = 100
     }
 
     suspend fun myRepos(page: Int): Page<Repo> = LinkHeaderParser.pageFromResponse(api.myRepos(page = page))
@@ -80,8 +85,35 @@ class ReposRepository @Inject constructor(
         return String(bytes, Charsets.UTF_8)
     }
 
-    suspend fun issues(owner: String, name: String, state: String, page: Int): Page<Issue> {
-        val pageData = LinkHeaderParser.pageFromResponse(api.issues(owner, name, state, page = page))
+    /** Server-side filters for the repository issue list (G-009). */
+    data class IssueQuery(
+        val state: String = "open",
+        val labels: List<String> = emptyList(),
+        val assignee: String? = null,
+        val creator: String? = null,
+        val sort: String = "created",
+        val direction: String = "desc",
+    ) {
+        /** What "active filters" means to the user: anything beyond defaults. */
+        val hasFilters: Boolean
+            get() = labels.isNotEmpty() || assignee != null || creator != null ||
+                sort != "created" || direction != "desc"
+    }
+
+    suspend fun issues(owner: String, name: String, query: IssueQuery, page: Int): Page<Issue> {
+        val pageData = LinkHeaderParser.pageFromResponse(
+            api.issues(
+                owner = owner,
+                repo = name,
+                state = query.state,
+                labels = query.labels.takeIf { it.isNotEmpty() }?.joinToString(","),
+                assignee = query.assignee,
+                creator = query.creator,
+                sort = query.sort,
+                direction = query.direction,
+                page = page,
+            ),
+        )
         // The issues endpoint also returns pull requests; keep the list clean.
         return pageData.copy(items = pageData.items.filterNot { it.isPullRequest })
     }
@@ -110,8 +142,24 @@ class ReposRepository @Inject constructor(
     suspend fun commit(owner: String, name: String, sha: String): CommitDetail =
         api.commit(owner, name, sha)
 
-    suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> =
-        api.pullFiles(owner, name, number)
+    /**
+     * All changed files of a pull request, Link-header driven (G-003). GitHub
+     * serves at most 100 files per page; truncating silently made the diff
+     * viewer show an incomplete change set.
+     */
+    suspend fun pullFiles(owner: String, name: String, number: Int): List<CommitFile> {
+        val all = mutableListOf<CommitFile>()
+        var page = 1
+        while (page <= MAX_PULL_FILE_PAGES) {
+            val response = api.pullFiles(owner, name, number, page = page)
+            if (!response.isSuccessful) throw HttpException(response)
+            all += response.body().orEmpty()
+            val next = LinkHeaderParser.nextPageNumber(response.headers()["Link"])
+            if (next == null || next <= page) break
+            page = next
+        }
+        return all
+    }
 
     // ---- People around a repository ------------------------------------------
 
@@ -139,6 +187,20 @@ class ReposRepository @Inject constructor(
 
     suspend fun searchIssues(query: String, page: Int): Page<Issue> {
         val result = api.searchIssues(query = query, page = page)
+        val nextPage = if (result.items.isNotEmpty()) page + 1 else null
+        return Page(items = result.items, nextPage = nextPage)
+    }
+
+    /**
+     * One tab of the "My work" hub (G-010): issues assigned to me, created by
+     * me, or pull requests waiting for my review.
+     */
+    suspend fun myWork(tab: SearchQueries.MyWorkTab, page: Int): Page<Issue> {
+        val result = api.searchIssues(
+            query = SearchQueries.myWorkQuery(tab),
+            page = page,
+            sort = SearchQueries.MY_WORK_SORT,
+        )
         val nextPage = if (result.items.isNotEmpty()) page + 1 else null
         return Page(items = result.items, nextPage = nextPage)
     }

@@ -1,11 +1,15 @@
 package com.gityou.app.ui
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gityou.app.data.remote.OfflineState
 import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.store.TokenStore
+import com.gityou.app.data.util.DeepLinkRouting
+import com.gityou.app.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -19,6 +23,7 @@ import retrofit2.HttpException
 @HiltViewModel
 class AppViewModel @Inject constructor(
     private val tokenStore: TokenStore,
+    private val offlineState: OfflineState,
     private val authRepository: AuthRepository,
     private val notificationsRepository: NotificationsRepository,
 ) : ViewModel() {
@@ -35,8 +40,37 @@ class AppViewModel @Inject constructor(
     private val _settings = MutableStateFlow(TokenStore.AppSettings())
     val settings: StateFlow<TokenStore.AppSettings> = _settings.asStateFlow()
 
-    private val _unreadCount = MutableStateFlow(0)
-    val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+    /**
+     * The badge reads the shared count from TokenStore instead of owning a
+     * second copy (G-004): the notifications screen publishes the real number
+     * after every fetch/mark-read, and the badge follows.
+     */
+    val unreadCount: StateFlow<Int> = tokenStore.unreadCount
+
+    /**
+     * Navigation route requested by an inbound App Link (G-012), held until
+     * the UI is signed in and the NavController exists. Drained by
+     * [consumePendingRoute].
+     */
+    private val _pendingRoute = MutableStateFlow<String?>(null)
+    val pendingRoute: StateFlow<String?> = _pendingRoute.asStateFlow()
+
+    /**
+     * Whether the app is locked (G-016). Set from the lifecycle: the app locks
+     * when it went to the background longer than the configured timeout, or
+     * always on a cold start.
+     */
+    private val _locked = MutableStateFlow(false)
+    val locked: StateFlow<Boolean> = _locked.asStateFlow()
+
+    private var backgroundedAt: Long? = null
+
+    /** Text shared into the app ("Share to GitYou"), offered as a new issue. */
+    private val _pendingShare = MutableStateFlow<String?>(null)
+    val pendingShare: StateFlow<String?> = _pendingShare.asStateFlow()
+
+    /** True while the visible data comes from the offline cache (G-013). */
+    val offline: StateFlow<Boolean> = offlineState.offline
 
     init {
         viewModelScope.launch {
@@ -46,7 +80,7 @@ class AppViewModel @Inject constructor(
             tokenStore.tokenFlow.collect { token ->
                 if (token.isNullOrBlank()) {
                     _appState.value = AppState.SignedOut
-                    _unreadCount.value = 0
+                    tokenStore.clearUnread()
                     return@collect
                 }
                 val user = try {
@@ -72,10 +106,68 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    /** Refreshes the badge count shown on the navigation bell. */
+    /** Routes an inbound intent; called by the Activity on create and on new intent. */
+    fun onSubmit(intent: Intent?) {
+        if (intent == null) return
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                val data = intent.dataString ?: return
+                _pendingRoute.value = DeepLinkRouting.route(
+                    url = data,
+                    issueRoute = Route::issue,
+                    repoRoute = Route::repo,
+                    userRoute = Route::user,
+                )
+            }
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                _pendingShare.value = DeepLinkRouting.firstGitHubUrl(text) ?: text?.trim()
+            }
+        }
+    }
+
+    /**
+     * Re-arms the lock after the app spent more than the configured timeout in
+     * the background. A short trip (notification shade, permission dialog)
+     * must not ask for the credential again.
+     */
+    fun onAppBackgrounded() {
+        backgroundedAt = System.currentTimeMillis()
+    }
+
+    fun onAppForegrounded() {
+        val leftAt = backgroundedAt ?: return
+        backgroundedAt = null
+        if (!_settings.value.biometricLock) return
+        val timeoutMs = _settings.value.lockTimeoutMinutes.coerceAtLeast(0) * 60_000L
+        if (System.currentTimeMillis() - leftAt >= timeoutMs) _locked.value = true
+    }
+
+    fun unlock() {
+        _locked.value = false
+    }
+
+    /** Locks immediately (used when the setting is switched on). */
+    fun lockNow() {
+        if (_settings.value.biometricLock) _locked.value = true
+    }
+
+    fun consumePendingRoute() {
+        _pendingRoute.value = null
+    }
+
+    fun consumePendingShare() {
+        _pendingShare.value = null
+    }
+
+    /**
+     * Refreshes the badge from the API. A null result (offline, rate limit)
+     * keeps the last known number instead of resetting it to zero, which used
+     * to make the bell look "all read" after a failed refresh.
+     */
     fun refreshUnread() {
         viewModelScope.launch {
-            _unreadCount.value = notificationsRepository.unreadEstimate() ?: 0
+            notificationsRepository.unreadCount()?.let { tokenStore.setUnreadCount(it) }
         }
     }
 }

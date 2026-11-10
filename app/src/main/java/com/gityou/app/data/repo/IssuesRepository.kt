@@ -8,13 +8,16 @@ import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.IssueLabelsRequest
 import com.gityou.app.data.remote.dto.IssueStateRequest
 import com.gityou.app.data.remote.dto.Label
+import com.gityou.app.data.remote.dto.MergePullRequestRequest
 import com.gityou.app.data.remote.dto.PrReview
 import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Reaction
 import com.gityou.app.data.remote.dto.ReactionRequest
 import com.gityou.app.data.remote.dto.ReviewRequest
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
+import com.gityou.app.data.remote.dto.UpdateIssueRequest
 import com.gityou.app.data.util.LinkHeaderParser
+import com.gityou.app.data.util.safeCall
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,6 +64,21 @@ class IssuesRepository @Inject constructor(
     suspend fun setIssueState(owner: String, name: String, number: Int, state: String): Issue =
         api.updateIssueState(owner, name, number, IssueStateRequest(state))
 
+    /** Edits the issue title/body/assignees; null arguments stay unchanged. */
+    suspend fun updateIssue(
+        owner: String,
+        name: String,
+        number: Int,
+        title: String? = null,
+        body: String? = null,
+        assignees: List<String>? = null,
+    ): Issue = api.updateIssue(
+        owner,
+        name,
+        number,
+        UpdateIssueRequest(title = title, body = body, assignees = assignees),
+    )
+
     suspend fun replaceIssueLabels(
         owner: String,
         name: String,
@@ -93,6 +111,42 @@ class IssuesRepository @Inject constructor(
 
     suspend fun submitReview(owner: String, name: String, number: Int, event: String, body: String?): PrReview =
         api.submitReview(owner, name, number, ReviewRequest(event = event, body = body))
+
+    /**
+     * Merges a pull request. [headSha] pins the commit the user reviewed;
+     * GitHub answers 409 when the branch moved since (G-014).
+     */
+    suspend fun merge(
+        owner: String,
+        name: String,
+        number: Int,
+        method: String,
+        headSha: String?,
+    ): Result<Unit> = safeCall {
+        val response = api.mergePullRequest(
+            owner,
+            name,
+            number,
+            MergePullRequestRequest(
+                sha = headSha,
+                mergeMethod = method,
+            ),
+        )
+        when {
+            response.isSuccessful -> Unit
+            response.code() == 409 -> throw MergeConflictException()
+            // 405 "merge not allowed" and 422 "not mergeable" (protection,
+            // required checks, draft) both mean: the user cannot merge now.
+            response.code() == 405 || response.code() == 422 -> throw MergeNotAllowedException()
+            else -> throw HttpException(response)
+        }
+    }
+
+    /** The head branch moved (or a merge is already in flight). */
+    class MergeConflictException : Exception("merge conflict")
+
+    /** Branch protection / required checks / permissions refuse the merge. */
+    class MergeNotAllowedException : Exception("merge not allowed")
 
     suspend fun react(commentId: Long, content: String): Reaction =
         api.reactToComment(commentId, ReactionRequest(content))

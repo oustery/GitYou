@@ -20,7 +20,8 @@
     <string name="error_forbidden">GitHub отклонил запрос. Проверьте права токена.</string>
     <string name="error_not_found">Не найдено. Возможно, это приватное или удалённое.</string>
     <string name="error_validation">Запрос отклонён. Проверьте введённые данные.</string>
-    <string name="error_network">Нет связи с GitHub. Проверьте сеть.</string>
+        <string name="offline_banner">Показаны сохранённые данные — нет связи с GitHub</string>
+<string name="error_network">Нет связи с GitHub. Проверьте сеть.</string>
     <string name="error_http">GitHub вернул ошибку. Попробуйте позже.</string>
     <string name="error_unknown">Что-то пошло не так. Попробуйте снова.</string>
     <string name="error_generic_action">Действие не выполнено. Попробуйте ещё раз.</string>
@@ -46,12 +47,12 @@
     <string name="auth_try_again">Попробовать снова</string>
     <string name="auth_missing_client_id">Добавьте Client ID OAuth-приложения для входа через Device Flow.</string>
     <string name="auth_pat_title">Персональный токен доступа</string>
-    <string name="auth_pat_body">Быстрая альтернатива: вставьте токен со скоупами repo, read:user и notifications.</string>
+    <string name="auth_pat_body">Быстрая альтернатива: вставьте токен со скоупами repo, read:user, notifications и gist.</string>
     <string name="auth_pat_label">github_pat_… или ghp_…</string>
     <string name="auth_show_token">Показать токен</string>
     <string name="auth_hide_token">Скрыть токен</string>
     <string name="auth_pat_button">Войти</string>
-    <string name="auth_pat_scopes_hint">Классическим токенам нужны скоупы repo, read:user и notifications.</string>
+    <string name="auth_pat_scopes_hint">Классическим токенам нужны скоупы repo, read:user, notifications и gist.</string>
 
     <!-- Star button -->
     <string name="star_action_add">Поставить звезду репозиторию</string>
@@ -123,6 +124,13 @@
     <string name="repo_fork_created">Форк создан — смотрите в своих репозиториях</string>
     <string name="repo_open_in_browser">Открыть в браузере</string>
     <string name="filter_open">Открытые</string>
+    <string name="issue_filter_assigned_me">Назначены мне</string>
+    <string name="issue_filter_most_commented">Обсуждаемые</string>
+    <string name="issue_filter_search_hint">Поиск по этим issue</string>
+    <string name="issue_filter_search_clear">Очистить поиск</string>
+    <string name="filters_clear">Сбросить фильтры</string>
+    <string name="issues_filter_empty_title">Нет подходящих issue</string>
+    <string name="issues_filter_empty_body">Под фильтры ничего не подходит. Сбросьте их, чтобы увидеть весь список.</string>
     <string name="filter_closed">Закрытые</string>
 
     <!-- Issues & pull requests -->
@@ -155,6 +163,19 @@
     <string name="settings_dynamic_color_label">Динамический цвет</string>
     <string name="settings_dynamic_color_body">Подстраиваться под палитру обоев (Android 12+)</string>
     <string name="settings_account_section">Аккаунт</string>
+    <string name="settings_security_section">Безопасность</string>
+    <string name="settings_lock_label">Блокировать приложение</string>
+    <string name="settings_lock_body">Запрашивать PIN, графический ключ или биометрию при возврате из фона. Сохранённый токен даёт запись в ваши репозитории.</string>
+    <string name="settings_lock_now">Сразу</string>
+    <string name="settings_lock_after_minutes">Через %1$d мин</string>
+    <string name="settings_revoke_access">Отозвать доступ на GitHub</string>
+    <string name="settings_revoke_access_body">Выход только забывает токен на этом устройстве. Чтобы аннулировать его и на GitHub, удалите GitYou в разделе Authorized OAuth Apps.</string>
+    <string name="lock_title">GitYou заблокирован</string>
+    <string name="lock_subtitle">Подтвердите блокировку устройства, чтобы продолжить</string>
+    <string name="lock_no_credential">На устройстве нет блокировки экрана, поэтому приложение нельзя заблокировать.</string>
+    <string name="lock_unlock">Разблокировать</string>
+    <string name="lock_retry">Повторить</string>
+    <string name="lock_continue">Продолжить</string>
     <string name="settings_sign_out">Выйти из аккаунта</string>
     <string name="sign_out_confirm_title">Выйти из GitHub?</string>
     <string name="sign_out_confirm_text">Чтобы продолжить пользоваться GitYou на этом устройстве, потребуется войти заново.</string>
@@ -267,6 +288,7 @@
     <string name="commits_title">Коммиты</string>
     <string name="diff_no_files_title">Нет изменений в файлах</string>
     <string name="diff_no_files_body">Этот коммит или pull request не меняет файлов.</string>
+    <string name="pull_files_action_short">Изменённые файлы</string>
     <string name="pull_files_action">Изменённые файлы (%1$d)</string>
 
     <!-- P0 batch: issue management -->
@@ -274,6 +296,13 @@
     <string name="issue_action_reopen">Переоткрыть задачу</string>
     <string name="issue_state_changed">Статус обновлён</string>
     <string name="issue_edit_labels">Изменить метки</string>
+    <string name="issue_edit_action">Редактировать issue</string>
+    <string name="issue_link_copy">Скопировать ссылку</string>
+    <string name="issue_link_copied">Ссылка скопирована</string>
+    <string name="issue_edit_title">Редактирование issue</string>
+    <string name="issue_edit_title_label">Заголовок</string>
+    <string name="issue_edit_body_label">Описание</string>
+    <string name="issue_updated">Issue обновлён</string>
     <string name="issue_labels_empty">В репозитории нет меток</string>
     <string name="comment_edit">Редактировать</string>
     <string name="comment_delete">Удалить</string>
@@ -339,4 +368,32 @@
     <!-- P1 batch: repository people -->
     <string name="people_title_stargazers">Звёзды</string>
     <string name="forks_title">Форки</string>
+
+    <!-- Моя работа (G-010) -->
+    <string name="my_work_title">Моя работа</string>
+    <string name="my_work_tab_assigned">На мне</string>
+    <string name="my_work_tab_created">Создано мной</string>
+    <string name="my_work_tab_review">На ревью</string>
+    <string name="my_work_empty_assigned_title">Вам ничего не назначено</string>
+    <string name="my_work_empty_assigned_body">Здесь появятся задачи, назначенные на вас, во всех репозиториях.</string>
+    <string name="my_work_empty_created_title">У вас нет открытых задач</string>
+    <string name="my_work_empty_created_body">Здесь появятся созданные вами задачи, которые ещё открыты.</string>
+    <string name="my_work_empty_review_title">Ревью не ждут</string>
+    <string name="my_work_empty_review_body">Здесь появятся пул-реквесты, ожидающие вашего ревью.</string>
+
+    <!-- Мерж пул-реквеста (G-014) -->
+    <string name="pr_merge_action">Смержить пул-реквест</string>
+    <string name="pr_merge_sheet_title">Мерж #%1$d</string>
+    <string name="pr_merge_method_merge">Создать merge-коммит</string>
+    <string name="pr_merge_method_squash">Squash и merge</string>
+    <string name="pr_merge_method_rebase">Rebase и merge</string>
+    <string name="pr_merge_confirm">Смержить</string>
+    <string name="pr_merged">Пул-реквест смержен</string>
+    <string name="pr_merge_hint">Мержится именно тот коммит, который вы посмотрели: если ветка успела измениться, GitHub отклонит мерж, а не вольёт невидимые правки.</string>
+    <string name="pr_state_conflict">Есть конфликты</string>
+    <string name="pr_state_behind">Отстаёт от базовой ветки</string>
+    <string name="pr_state_blocked">Блокировано правилами защиты ветки</string>
+    <string name="pr_state_clean">Готов к мержу</string>
+    <string name="error_merge_conflict">Ветка изменилась после открытия. Обновите экран и посмотрите дифф заново.</string>
+    <string name="error_merge_not_allowed">GitHub отклонил мерж: обязательные проверки, ревью или защита ветки.</string>
 </resources>

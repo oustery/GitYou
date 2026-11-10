@@ -4,10 +4,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,6 +41,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gityou.app.R
+import com.gityou.app.data.util.DeepLinkRouting
+import com.gityou.app.ui.components.AppLockScreen
 import com.gityou.app.ui.components.LocalHapticsEnabled
 import com.gityou.app.ui.components.LocalMarkdownFactory
 import com.gityou.app.ui.components.LocalRenderMarkdown
@@ -45,6 +54,7 @@ import com.gityou.app.ui.navigation.navigateTopLevel
 import com.gityou.app.ui.screens.auth.AuthScreen
 import com.gityou.app.ui.theme.AccentPalette
 import com.gityou.app.ui.theme.GitYouTheme
+import com.gityou.app.ui.theme.Spacing
 import com.gityou.app.ui.theme.TextScale
 import com.gityou.app.ui.theme.ThemeMode
 
@@ -56,6 +66,10 @@ fun GitYouApp(
     val appState by appViewModel.appState.collectAsStateWithLifecycle()
     val settings by appViewModel.settings.collectAsStateWithLifecycle()
     val unreadCount by appViewModel.unreadCount.collectAsStateWithLifecycle()
+    val locked by appViewModel.locked.collectAsStateWithLifecycle()
+    val offline by appViewModel.offline.collectAsStateWithLifecycle()
+    val pendingRoute by appViewModel.pendingRoute.collectAsStateWithLifecycle()
+    val pendingShare by appViewModel.pendingShare.collectAsStateWithLifecycle()
 
     // The in-app text scale multiplies the system font scale; markdown
     // views and every Material text follow it consistently.
@@ -80,16 +94,59 @@ fun GitYouApp(
             LocalDensity provides scaledDensity,
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                when (appState) {
-                    AppViewModel.AppState.Loading -> BrandedLoading()
-                    AppViewModel.AppState.SignedOut -> AuthScreen()
-                    is AppViewModel.AppState.SignedIn -> MainScaffold(
-                        unreadCount = unreadCount,
-                        defaultTab = Route.defaultTabRoute(settings.defaultTab),
-                        onRefreshUnread = appViewModel::refreshUnread,
-                    )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Cached answers are usable, but the user must know they may
+                    // be stale instead of assuming the data is live (G-013).
+                    if (offline && appState is AppViewModel.AppState.SignedIn && !locked) {
+                        OfflineBanner()
+                    }
+                    when (appState) {
+                        AppViewModel.AppState.Loading -> BrandedLoading()
+                        AppViewModel.AppState.SignedOut -> AuthScreen()
+                        // The lock sits between the credential and the content, so
+                        // nothing behind it is composed while locked (G-016).
+                        is AppViewModel.AppState.SignedIn -> if (locked) {
+                            AppLockScreen(onUnlocked = appViewModel::unlock)
+                        } else {
+                            MainScaffold(
+                                unreadCount = unreadCount,
+                                defaultTab = Route.defaultTabRoute(settings.defaultTab),
+                                onRefreshUnread = appViewModel::refreshUnread,
+                                pendingRoute = pendingRoute,
+                                onPendingRouteHandled = appViewModel::consumePendingRoute,
+                                pendingShare = pendingShare,
+                                onPendingShareHandled = appViewModel::consumePendingShare,
+                            )
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Slim strip above the content: what is shown was read from the cache. */
+@Composable
+private fun OfflineBanner() {
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(Spacing.sm))
+            Text(
+                stringResource(R.string.offline_banner),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
         }
     }
 }
@@ -99,6 +156,10 @@ private fun MainScaffold(
     unreadCount: Int,
     defaultTab: String,
     onRefreshUnread: () -> Unit,
+    pendingRoute: String?,
+    onPendingRouteHandled: () -> Unit,
+    pendingShare: String?,
+    onPendingShareHandled: () -> Unit,
 ) {
     val navController: NavHostController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -121,6 +182,30 @@ private fun MainScaffold(
     // is entirely up to the user.
     LaunchedEffect(Unit) {
         if (defaultTab != Route.HOME) navController.navigateTopLevel(defaultTab)
+    }
+
+    // An App Link that arrived before sign-in is replayed here, once the graph
+    // exists (G-012). It wins over the default tab: the user asked for that
+    // exact screen by tapping a link.
+    LaunchedEffect(pendingRoute) {
+        val route = pendingRoute ?: return@LaunchedEffect
+        navController.navigate(route)
+        onPendingRouteHandled()
+    }
+
+    // "Share to GitYou" mostly carries a link (browsers append the page URL),
+    // so it opens that screen; text without a GitHub link has no destination
+    // the app can render and is dropped instead of opening a wrong screen.
+    LaunchedEffect(pendingShare) {
+        val text = pendingShare ?: return@LaunchedEffect
+        val route = DeepLinkRouting.route(
+            url = text,
+            issueRoute = Route::issue,
+            repoRoute = Route::repo,
+            userRoute = Route::user,
+        )
+        if (route != null) navController.navigate(route)
+        onPendingShareHandled()
     }
 
     NavigationSuiteScaffold(

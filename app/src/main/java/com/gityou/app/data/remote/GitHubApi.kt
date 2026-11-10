@@ -14,6 +14,7 @@ import com.gityou.app.data.remote.dto.Gist
 import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.IssueLabelsRequest
 import com.gityou.app.data.remote.dto.IssueStateRequest
+import com.gityou.app.data.remote.dto.MergePullRequestRequest
 import com.gityou.app.data.remote.dto.Label
 import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.remote.dto.PrReview
@@ -28,6 +29,7 @@ import com.gityou.app.data.remote.dto.SearchReposResponse
 import com.gityou.app.data.remote.dto.SearchUsersResponse
 import com.gityou.app.data.remote.dto.Tag
 import com.gityou.app.data.remote.dto.UpdateCommentRequest
+import com.gityou.app.data.remote.dto.UpdateIssueRequest
 import com.gityou.app.data.remote.dto.User
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -232,11 +234,22 @@ interface GitHubApi {
 
     // ---- Issues -------------------------------------------------------------
 
+    /**
+     * Repository issues. Server-side filtering is what makes the list usable in
+     * a repository with hundreds of issues (G-009): [labels] is a
+     * comma-separated AND list, [assignee] a login, [sort]/[direction] order
+     * the result.
+     */
     @GET("repos/{owner}/{repo}/issues")
     suspend fun issues(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
         @Query("state") state: String = "open",
+        @Query("labels") labels: String? = null,
+        @Query("assignee") assignee: String? = null,
+        @Query("creator") creator: String? = null,
+        @Query("sort") sort: String? = null,
+        @Query("direction") direction: String? = null,
         @Query("per_page") perPage: Int = 30,
         @Query("page") page: Int = 1,
     ): Response<List<Issue>>
@@ -290,6 +303,19 @@ interface GitHubApi {
         @Path("number") number: Int,
     ): PullRequest
 
+    /**
+     * Merges a pull request. [sha] makes GitHub reject the merge when the head
+     * moved since the user reviewed the diff, [mergeMethod] is
+     * merge/squash/rebase.
+     */
+    @PUT("repos/{owner}/{repo}/pulls/{number}/merge")
+    suspend fun mergePullRequest(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("number") number: Int,
+        @Body body: MergePullRequestRequest,
+    ): Response<Unit>
+
     // ---- Commits and diffs --------------------------------------------------
 
     @GET("repos/{owner}/{repo}/commits")
@@ -308,14 +334,19 @@ interface GitHubApi {
         @Path("sha") sha: String,
     ): CommitDetail
 
-    /** Changed files of a pull request, each with its unified diff patch. */
+    /**
+     * Changed files of a pull request, each with its unified diff patch.
+     * The endpoint caps `per_page` at 100, so callers must follow the Link
+     * header — a PR with more than 100 files otherwise loses the tail (G-003).
+     */
     @GET("repos/{owner}/{repo}/pulls/{number}/files")
     suspend fun pullFiles(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
         @Path("number") number: Int,
         @Query("per_page") perPage: Int = 100,
-    ): List<CommitFile>
+        @Query("page") page: Int = 1,
+    ): Response<List<CommitFile>>
 
     // ---- Issue / PR management ----------------------------------------------
 
@@ -325,6 +356,15 @@ interface GitHubApi {
         @Path("repo") repo: String,
         @Path("number") number: Int,
         @Body body: IssueStateRequest,
+    ): Issue
+
+    /** Edits title/body/assignees/milestone; absent fields are left alone. */
+    @PATCH("repos/{owner}/{repo}/issues/{number}")
+    suspend fun updateIssue(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Path("number") number: Int,
+        @Body body: UpdateIssueRequest,
     ): Issue
 
     @PATCH("repos/{owner}/{repo}/issues/{number}")

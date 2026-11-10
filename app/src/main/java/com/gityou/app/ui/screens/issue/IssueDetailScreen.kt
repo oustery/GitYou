@@ -2,6 +2,7 @@ package com.gityou.app.ui.screens.issue
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -43,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,19 +53,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import com.gityou.app.R
 import com.gityou.app.data.remote.dto.Comment
@@ -72,6 +78,7 @@ import com.gityou.app.data.util.relativeOrAbsolute
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.StateScreen
+import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.components.relativeTimeString
 import androidx.compose.foundation.clickable
 import com.gityou.app.ui.theme.Spacing
@@ -93,12 +100,16 @@ fun IssueDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
 
     // Dialog control: at most one is visible at a time.
     var showLabelPicker by rememberSaveable { mutableStateOf(false) }
     var editingComment by remember { mutableStateOf<Comment?>(null) }
     var deletingComment by remember { mutableStateOf<Comment?>(null) }
     var reviewEvent by remember { mutableStateOf<String?>(null) }
+    var showMergeSheet by rememberSaveable { mutableStateOf(false) }
+    var showEditSheet by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(managementMessage) {
         managementMessage?.let {
@@ -130,9 +141,15 @@ fun IssueDetailScreen(
                 actions = {
                     if (isPull) {
                         IconButton(onClick = onOpenFiles) {
+                            val changedFiles = (state as? UiState.Content)?.value?.detail?.changedFiles
+                            val label = if (changedFiles != null && changedFiles > 0) {
+                                stringResource(R.string.pull_files_action, changedFiles)
+                            } else {
+                                stringResource(R.string.pull_files_action_short)
+                            }
                             Icon(
                                 Icons.Filled.Description,
-                                contentDescription = stringResource(R.string.pull_files_action, 0),
+                                contentDescription = label,
                             )
                         }
                     }
@@ -144,6 +161,14 @@ fun IssueDetailScreen(
                             showLabelPicker = true
                         },
                         onReview = { event -> reviewEvent = event },
+                        onMerge = { showMergeSheet = true },
+                        onEdit = { showEditSheet = true },
+                        onCopyLink = { link ->
+                            clipboard.setText(AnnotatedString(link))
+                            scope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.issue_link_copied))
+                            }
+                        },
                     )
                 },
             )
@@ -263,6 +288,29 @@ fun IssueDetailScreen(
                 }
             }
 
+            if (showMergeSheet) {
+                MergeDialog(
+                    detail = screenState.detail,
+                    merging = screenState.merging,
+                    onConfirm = { method ->
+                        showMergeSheet = false
+                        viewModel.merge(method)
+                    },
+                    onDismiss = { showMergeSheet = false },
+                )
+            }
+            if (showEditSheet) {
+                EditIssueDialog(
+                    title = screenState.detail.title,
+                    body = screenState.detail.body.orEmpty(),
+                    busy = screenState.busy,
+                    onConfirm = { newTitle, newBody ->
+                        showEditSheet = false
+                        viewModel.editIssue(newTitle, newBody)
+                    },
+                    onDismiss = { showEditSheet = false },
+                )
+            }
             if (showLabelPicker) {
                 LabelPickerDialog(
                     available = screenState.availableLabels,
@@ -328,6 +376,9 @@ private fun ManagementMenu(
     isPull: Boolean,
     onEditLabels: () -> Unit,
     onReview: (String) -> Unit,
+    onMerge: () -> Unit,
+    onEdit: () -> Unit,
+    onCopyLink: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
@@ -338,6 +389,22 @@ private fun ManagementMenu(
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.action_more))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (!isPull) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.issue_edit_action)) },
+                    onClick = {
+                        expanded = false
+                        onEdit()
+                    },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.issue_link_copy)) },
+                onClick = {
+                    expanded = false
+                    detail?.htmlUrl?.let(onCopyLink)
+                },
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.issue_edit_labels)) },
                 onClick = {
@@ -363,6 +430,13 @@ private fun ManagementMenu(
                 )
             }
             if (isPull && detail?.state == "open" && !detail.merged) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pr_merge_action)) },
+                    onClick = {
+                        expanded = false
+                        onMerge()
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.review_approve)) },
                     onClick = {
@@ -815,6 +889,147 @@ private fun CommentCard(
             }
         }
     }
+}
+
+/**
+ * Merge sheet (G-014): pick a method and confirm. The state chip states what
+ * GitHub thinks of the branch (`mergeable_state`) so a blocked merge is
+ * explained before the user taps, not through an error afterwards.
+ */
+/**
+ * Title/body editor (G-008). The body is pre-filled with the current text so
+ * the user edits in place instead of retyping the issue; an emptied field is a
+ * deliberate clear.
+ */
+@Composable
+private fun EditIssueDialog(
+    title: String,
+    body: String,
+    busy: Boolean,
+    onConfirm: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var draftTitle by rememberSaveable { mutableStateOf(title) }
+    var draftBody by rememberSaveable { mutableStateOf(body) }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(stringResource(R.string.issue_edit_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = draftTitle,
+                    onValueChange = { draftTitle = it },
+                    singleLine = true,
+                    enabled = !busy,
+                    label = { Text(stringResource(R.string.issue_edit_title_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(Spacing.md))
+                OutlinedTextField(
+                    value = draftBody,
+                    onValueChange = { draftBody = it },
+                    enabled = !busy,
+                    minLines = 6,
+                    maxLines = 12,
+                    label = { Text(stringResource(R.string.issue_edit_body_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(draftTitle, draftBody) },
+                enabled = !busy && draftTitle.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun MergeDialog(
+    detail: IssueDetailUi,
+    merging: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var method by rememberSaveable { mutableStateOf("merge") }
+    AlertDialog(
+        onDismissRequest = { if (!merging) onDismiss() },
+        title = { Text(stringResource(R.string.pr_merge_sheet_title, detail.number)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.pr_merge_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(Spacing.md))
+                listOf(
+                    "merge" to R.string.pr_merge_method_merge,
+                    "squash" to R.string.pr_merge_method_squash,
+                    "rebase" to R.string.pr_merge_method_rebase,
+                ).forEach { (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { method = value }
+                            .padding(vertical = Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = method == value, onClick = { method = value })
+                        Text(stringResource(label), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                val stateLabel = mergeStateLabel(detail)
+                if (stateLabel != null) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        stringResource(stateLabel),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (detail.mergeable == false) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(method) },
+                enabled = !merging && detail.mergeable != false,
+            ) {
+                if (merging) {
+                    CircularWavyProgressIndicator(modifier = Modifier.size(16.dp))
+                } else {
+                    Text(stringResource(R.string.pr_merge_confirm))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !merging) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@StringRes
+private fun mergeStateLabel(detail: IssueDetailUi): Int? = when (detail.mergeableState) {
+    "dirty" -> R.string.pr_state_conflict
+    "behind" -> R.string.pr_state_behind
+    "blocked", "draft" -> R.string.pr_state_blocked
+    "clean", "unstable", "has_hooks" -> R.string.pr_state_clean
+    else -> if (detail.mergeable == false) R.string.pr_state_conflict else null
 }
 
 private fun reactionCount(reactions: com.gityou.app.data.remote.dto.ReactionsSummary, content: String): Int =

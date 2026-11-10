@@ -8,6 +8,7 @@ import com.gityou.app.data.remote.dto.Notification
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.store.TokenStore
 import com.gityou.app.data.util.ApiErrors
+import com.gityou.app.data.util.NotificationRouting
 import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,18 +38,10 @@ sealed interface UiMessage {
     data class Error(val errorKey: String) : UiMessage
 }
 
-/** Where a notification should take the user. */
-data class NotificationTarget(
-    val owner: String,
-    val repo: String,
-    val number: Int,
-    val isPull: Boolean,
-)
-
 @HiltViewModel
 class NotificationsViewModel @Inject constructor(
     private val notificationsRepository: NotificationsRepository,
-    tokenStore: TokenStore,
+    private val tokenStore: TokenStore,
 ) : ViewModel() {
 
     /** User preference: opening a notification marks it as read. */
@@ -76,13 +69,18 @@ class NotificationsViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _refreshing.value = true
-            _state.value = safeCall { notificationsRepository.notifications(page = 1) }.fold(
+            val result = safeCall { notificationsRepository.notifications(page = 1) }
+            _state.value = result.fold(
                 onSuccess = { page ->
                     UiState.Content(NotificationsUi(items = page.items, nextPage = page.nextPage))
                 },
                 onFailure = { t -> UiState.Error(ApiErrors.keyOf(t)) },
             )
             _refreshing.value = false
+            // The badge shows the true total, not the first page (G-004).
+            if (result.isSuccess) {
+                notificationsRepository.unreadCount()?.let { tokenStore.setUnreadCount(it) }
+            }
         }
     }
 
@@ -116,9 +114,13 @@ class NotificationsViewModel @Inject constructor(
     }
 
     fun markRead(notification: Notification) {
+        if (!notification.unread) return
         viewModelScope.launch {
             safeCall { notificationsRepository.markThreadRead(notification.id) }.fold(
-                onSuccess = { updateItem(notification.id, unread = false) },
+                onSuccess = {
+                    updateItem(notification.id, unread = false)
+                    tokenStore.decrementUnread()
+                },
                 onFailure = { t -> _message.value = UiMessage.Error(ApiErrors.keyOf(t)) },
             )
         }
@@ -135,6 +137,7 @@ class NotificationsViewModel @Inject constructor(
                             ),
                         )
                     }
+                    tokenStore.clearUnread()
                     _message.value = UiMessage.Res(R.string.notifications_marked_all)
                 },
                 onFailure = { t -> _message.value = UiMessage.Error(ApiErrors.keyOf(t)) },
@@ -152,18 +155,16 @@ class NotificationsViewModel @Inject constructor(
         }
     }
 
-    fun targetFor(notification: Notification): NotificationTarget? {
-        val url = notification.subject?.url ?: return null
-        val segments = url.split('/')
-        if (segments.size < 8) return null
-        val owner = segments.getOrNull(4) ?: return null
-        val repo = segments.getOrNull(5) ?: return null
-        val number = segments.lastOrNull()?.toIntOrNull() ?: return null
-        return NotificationTarget(
-            owner = owner,
-            repo = repo,
-            number = number,
-            isPull = notification.subject?.type == "PullRequest",
+    /**
+     * Resolves where a notification should navigate. Only Issue and
+     * PullRequest threads carry a number that maps onto an app screen: Release,
+     * Discussion, Commit and CheckSuite URLs end with an arbitrary id, which
+     * used to be read as an issue number and produced a 404 (G-021). For those
+     * the repository screen is the correct, honest fallback.
+     */
+    fun destinationFor(notification: Notification): NotificationRouting.Destination =
+        NotificationRouting.resolve(
+            subjectType = notification.subject?.type,
+            subjectUrl = notification.subject?.url,
         )
-    }
 }
