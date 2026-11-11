@@ -25,6 +25,7 @@ coroutinesTest = "1.10.2"
 # after the upstream regression is fixed.
 mockk = "1.14.2"
 detekt = "1.23.8"
+robolectric = "4.16"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -78,6 +79,12 @@ coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+# Compose UI smoke tests run on the JVM through Robolectric (G-011): no
+# emulator is needed in CI, the four key flows are exercised as unit tests.
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

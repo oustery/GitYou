@@ -255,6 +255,18 @@
     <string name="settings_cache_size_line">%1$s stored</string>
     <string name="settings_cache_clear">Clear</string>
     <string name="settings_cache_cleared">Cache cleared</string>
+
+    <!-- Diagnostics (G-017): opt-in local telemetry and crash reports -->
+    <string name="settings_diagnostics_section">Diagnostics</string>
+    <string name="settings_telemetry_title">Local event log</string>
+    <string name="settings_telemetry_body">Records which screens and actions you use, only in the app\'s private storage. Off by default; turning it off erases the log. Nothing is ever uploaded.</string>
+    <string name="settings_crash_title">Crash reports</string>
+    <string name="settings_crash_none">No crashes recorded</string>
+    <string name="settings_crash_last">Last crash: %1$s</string>
+    <string name="settings_crash_count">%1$d report(s) stored</string>
+    <string name="settings_crash_share">Share</string>
+    <string name="settings_crash_clear">Clear</string>
+    <string name="settings_crash_cleared">Crash reports deleted</string>
     <string name="settings_releases">Releases</string>
 
     <!-- In-app update (Settings → About → Check for updates) -->

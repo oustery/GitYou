@@ -2,6 +2,7 @@ package com.gityou.app
 
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.repo.ReposRepository
+import com.gityou.app.data.telemetry.NoopTelemetry
 import com.gityou.app.data.remote.dto.Page
 import com.gityou.app.ui.components.UiState
 import com.gityou.app.ui.screens.search.SearchSort
@@ -38,7 +39,7 @@ class SearchViewModelTest {
     @Test
     fun `typing a query runs the search after debounce`() = runTest {
         coEvery { repository.search(any(), any(), any()) } returns Page(listOf(repo("kotlinx")), nextPage = null)
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, NoopTelemetry)
 
         viewModel.onQueryChanged("kotlin")
         // Fewer than the debounce window: the search must not run yet.
@@ -58,7 +59,7 @@ class SearchViewModelTest {
     @Test
     fun `error state is retried by retrySearch`() = runTest {
         coEvery { repository.search(any(), any(), any()) } throws IOException("offline")
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, NoopTelemetry)
         viewModel.onQueryChanged("kotlin")
         advanceUntilIdle()
         assertTrue(viewModel.results.value is UiState.Error)
@@ -76,7 +77,7 @@ class SearchViewModelTest {
     fun `loadMore appends a page and flags a failure for retry`() = runTest {
         coEvery { repository.search("kotlin", 1, any()) } returns Page(listOf(repo("first")), nextPage = 2)
         coEvery { repository.search("kotlin", 2, any()) } throws IOException("boom")
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, NoopTelemetry)
         viewModel.onQueryChanged("kotlin")
         advanceUntilIdle()
 
@@ -99,7 +100,7 @@ class SearchViewModelTest {
     @Test
     fun `changing sort triggers a new search`() = runTest {
         coEvery { repository.search(any(), any(), any()) } returns Page(emptyList(), nextPage = null)
-        val viewModel = SearchViewModel(repository)
+        val viewModel = SearchViewModel(repository, NoopTelemetry)
         viewModel.onQueryChanged("kotlin")
         advanceUntilIdle()
         coVerify(exactly = 1) { repository.search("kotlin", 1, null) }

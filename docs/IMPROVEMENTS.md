@@ -107,3 +107,59 @@ offered no control over results.
   tables degrade gracefully without leaking tags).
 - Code syntax highlighting in markdown (listed in the README roadmap).
 - Collapsible `<details>` sections (content renders inline instead).
+
+## Functional-completeness audit: closing Stage 1 and Stage 2
+
+The full audit lives in [AUDIT_COMPLETENESS.md](AUDIT_COMPLETENESS.md). Its
+Stage 1 (G-001..G-005, G-021) and Stage 2 core (G-006..G-010, G-012..G-014,
+G-016) shipped earlier. This section records the last three items that
+complete both stages.
+
+### G-042 — OAuth Client ID from repository variables (Stage 1)
+
+CI now passes `-PGITYOU_CLIENT_ID="${{ vars.GITYOU_CLIENT_ID }}"` to the
+assemble step, so release builds run Device Flow without manual entry once the
+repository variable is set. An unset variable renders as an empty string — the
+same "enter the Client ID in the app" fallback local builds have.
+
+### G-011 — lint gate + JVM smoke tests (Stage 2)
+
+- `lintDebug` now runs in CI after the unit tests; `abortOnError = true` (kept
+  from F-027) turns lint errors into failed builds. First run is clean.
+- Four key flows are exercised as Robolectric Compose smoke tests running as
+  plain unit tests (no emulator): auth (Client ID unlocks Device Flow), home
+  (repository list + top-bar callbacks + empty state), search (trending +
+  typed query loop), settings (all sections render, diagnostics toggle
+  persists through the TokenStore). Setup: `robolectric 4.16`,
+  `ui-test-junit4`, `ui-test-manifest` via `debugImplementation` (its test
+  activity only lands in the merged manifest from the debug variant),
+  `isIncludeAndroidResources = true`.
+
+### G-017 — diagnostics: opt-in telemetry + local crash capture (Stage 2)
+
+No backend exists, so the honest implementation is local-first:
+
+- `data/telemetry/Telemetry.kt` — `Telemetry` interface, `NoopTelemetry`,
+  `LocalTelemetry`: a gated, size-capped JSON Lines journal in the app's
+  private storage. The gate is consulted per event; turning diagnostics off
+  wipes the file ("off" means no data retained, not "paused").
+- `data/telemetry/CrashReporter.kt` — uncaught-exception wrapper writing small
+  JSON reports (version, thread, exception, stack) into the same directory,
+  keeping the newest five and chaining to the previous handler.
+- Events instrumented per the audit's analytics list: `auth_started`,
+  `auth_succeeded`, `auth_failed(reason)`, `repo_opened`, `issue_opened`,
+  `comment_sent`, `review_submitted`, `merge_attempted/succeeded/failed`,
+  `search_performed(type)`, `deep_link_opened(source)`, `offline_shown`.
+  Privacy rule: no owner/repo names, no issue numbers, no query text.
+- Settings gained a Diagnostics section (EN/RU): the opt-in switch (off by
+  default) and a crash card with share (FileProvider) and clear actions.
+- A future provider (Sentry/Firebase) implements `Telemetry` without touching
+  call sites; until then nothing leaves the device.
+
+## Verification (this round)
+
+- `detekt`, `testDebugUnitTest` (133 tests across 26 classes, including the 5
+  Robolectric smoke tests), `lintDebug` and `assembleDebug` all green on
+  JDK 21 / AGP 8.13.2 before the push.
+- Workflow validated with a YAML parse plus `bash -n` over every `run` step,
+  asserting the client-id flag and the lint step are present.

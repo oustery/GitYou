@@ -4,4 +4,8 @@
     <cache-path
         name="updates"
         path="updates/" />
+    <!-- Crash reports shared from Settings → Diagnostics (G-017). -->
+    <files-path
+        name="diagnostics"
+        path="diagnostics/" />
 </paths>

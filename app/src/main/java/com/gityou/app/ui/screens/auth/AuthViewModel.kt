@@ -6,6 +6,7 @@ import com.gityou.app.data.remote.DeviceFlow
 import com.gityou.app.data.remote.PollDecision
 import com.gityou.app.data.remote.dto.DeviceCodeResponse
 import com.gityou.app.data.repo.AuthRepository
+import com.gityou.app.data.telemetry.Telemetry
 import com.gityou.app.data.util.ApiErrors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -36,6 +37,7 @@ data class PatState(val phase: PatPhase = PatPhase.IDLE, val errorKey: String = 
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val timeSource: TimeSource,
+    private val telemetry: Telemetry,
 ) : ViewModel() {
 
     private val _deviceFlow = MutableStateFlow(DeviceFlowState())
@@ -83,6 +85,7 @@ class AuthViewModel @Inject constructor(
             return
         }
         // Keep the Job: «Отмена» must be able to stop the polling loop (F-003).
+        telemetry.event("auth_started", mapOf("method" to "device_flow"))
         pollJob = viewModelScope.launch {
             try {
                 val code = authRepository.beginDeviceFlow(clientId)
@@ -95,6 +98,7 @@ class AuthViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
+                telemetry.event("auth_failed", mapOf("method" to "device_flow", "reason" to ApiErrors.keyOf(t)))
                 _deviceFlow.value = DeviceFlowState(
                     phase = DeviceFlowPhase.ERROR,
                     errorKey = ApiErrors.keyOf(t),
@@ -127,11 +131,16 @@ class AuthViewModel @Inject constructor(
                     _deviceFlow.value = DeviceFlowState(phase = DeviceFlowPhase.IDLE)
                     try {
                         authRepository.signInWithPat(decision.token)
+                        telemetry.event("auth_succeeded", mapOf("method" to "device_flow"))
                     } catch (e: CancellationException) {
                         throw e
-                    } catch (_: Throwable) {
+                    } catch (t: Throwable) {
                         // AppViewModel flips to SignedIn once the token persists;
                         // validation failures surface there.
+                        telemetry.event(
+                            "auth_failed",
+                            mapOf("method" to "device_flow", "reason" to ApiErrors.keyOf(t)),
+                        )
                     }
                     return
                 }
@@ -166,14 +175,17 @@ class AuthViewModel @Inject constructor(
 
     fun signInWithPat(token: String) {
         if (token.isBlank()) return
+        telemetry.event("auth_started", mapOf("method" to "pat"))
         viewModelScope.launch {
             _patState.value = PatState(phase = PatPhase.SUBMITTING)
             _patState.value = try {
                 authRepository.signInWithPat(token)
+                telemetry.event("auth_succeeded", mapOf("method" to "pat"))
                 PatState(phase = PatPhase.IDLE)
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
+                telemetry.event("auth_failed", mapOf("method" to "pat", "reason" to ApiErrors.keyOf(t)))
                 PatState(phase = PatPhase.ERROR, errorKey = ApiErrors.keyOf(t))
             }
         }

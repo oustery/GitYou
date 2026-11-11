@@ -104,6 +104,14 @@ android {
         abortOnError = true
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged resources to render Compose screens
+            // and resolve stringResource() in smoke tests (G-011).
+            isIncludeAndroidResources = true
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -192,4 +200,11 @@ dependencies {
     // Network behaviour (status codes, Link headers, error mapping) is tested
     // against real HTTP responses instead of mocks (G-011).
     testImplementation(libs.okhttp.mockwebserver)
+    // Compose smoke tests on the JVM: Robolectric drives the four key flows
+    // (auth, home, search, settings) without an emulator (G-011).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.compose.ui.test.junit4)
+    // The manifest dependency must ride the debug variant so its test activity
+    // lands in the unit-test merged manifest (testImplementation does not).
+    debugImplementation(libs.compose.ui.test.manifest)
 }

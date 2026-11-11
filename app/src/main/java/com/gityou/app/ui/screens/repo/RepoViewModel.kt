@@ -11,6 +11,7 @@ import com.gityou.app.data.remote.dto.PullRequest
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.repo.IssuesRepository
 import com.gityou.app.data.repo.ReposRepository
+import com.gityou.app.data.telemetry.Telemetry
 import com.gityou.app.data.repo.ReposRepository.FilePreviewException
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.data.util.safeCall
@@ -102,6 +103,7 @@ class RepoViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val reposRepository: ReposRepository,
     private val issuesRepository: IssuesRepository,
+    private val telemetry: Telemetry,
 ) : ViewModel() {
 
     val owner: String = savedStateHandle.get<String>("owner").orEmpty()
@@ -114,6 +116,9 @@ class RepoViewModel @Inject constructor(
     val actionMessage: StateFlow<Int?> = _actionMessage.asStateFlow()
 
     init {
+        // No owner/name in the params: diagnostics must stay free of the
+        // repositories a user looks at, even locally (G-017).
+        telemetry.event("repo_opened")
         load()
     }
 

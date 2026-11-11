@@ -8,6 +8,7 @@ import com.gityou.app.data.repo.AuthRepository
 import com.gityou.app.data.repo.NotificationsRepository
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.store.TokenStore
+import com.gityou.app.data.telemetry.Telemetry
 import com.gityou.app.data.util.DeepLinkRouting
 import com.gityou.app.ui.navigation.Route
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ class AppViewModel @Inject constructor(
     private val offlineState: OfflineState,
     private val authRepository: AuthRepository,
     private val notificationsRepository: NotificationsRepository,
+    private val telemetry: Telemetry,
 ) : ViewModel() {
 
     sealed interface AppState {
@@ -72,9 +74,24 @@ class AppViewModel @Inject constructor(
     /** True while the visible data comes from the offline cache (G-013). */
     val offline: StateFlow<Boolean> = offlineState.offline
 
+    /** Debounce flag for the offline_shown diagnostics event (G-017). */
+    private var _offlineReported = false
+
     init {
         viewModelScope.launch {
             tokenStore.settingsFlow.collect { _settings.value = it }
+        }
+        // The "showing saved data" banner is driven by the same flag; report
+        // each offline episode once, at the moment it starts (G-017).
+        viewModelScope.launch {
+            offlineState.offline.collect { isOffline ->
+                if (isOffline && !_offlineReported) {
+                    _offlineReported = true
+                    telemetry.event("offline_shown")
+                } else if (!isOffline) {
+                    _offlineReported = false
+                }
+            }
         }
         viewModelScope.launch {
             tokenStore.tokenFlow.collect { token ->
@@ -112,6 +129,7 @@ class AppViewModel @Inject constructor(
         when (intent.action) {
             Intent.ACTION_VIEW -> {
                 val data = intent.dataString ?: return
+                telemetry.event("deep_link_opened", mapOf("source" to "link"))
                 _pendingRoute.value = DeepLinkRouting.route(
                     url = data,
                     issueRoute = Route::issue,
@@ -121,6 +139,7 @@ class AppViewModel @Inject constructor(
             }
             Intent.ACTION_SEND -> {
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                telemetry.event("deep_link_opened", mapOf("source" to "share"))
                 _pendingShare.value = DeepLinkRouting.firstGitHubUrl(text) ?: text?.trim()
             }
         }

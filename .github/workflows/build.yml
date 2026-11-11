@@ -85,8 +85,17 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      # Android lint gates the build the same way detekt does (G-011): new
+      # warnings surface in the log, errors fail the run (abortOnError=true).
+      - name: Android lint
+        run: ./gradlew --no-daemon lintDebug
+
       - name: Assemble per-ABI APKs (debug + release)
-        run: ./gradlew --no-daemon assembleDebug assembleRelease -PGITYOU_VERSION_NAME="$GITYOU_VERSION_NAME" -PGITYOU_VERSION_CODE="$GITYOU_VERSION_CODE"
+        # G-042: the OAuth App Client ID comes from a repository variable, so
+        # CI builds run Device Flow out of the box. An unset variable renders
+        # as "" — the same "enter the Client ID in the app" fallback as local
+        # builds have today.
+        run: ./gradlew --no-daemon assembleDebug assembleRelease -PGITYOU_VERSION_NAME="$GITYOU_VERSION_NAME" -PGITYOU_VERSION_CODE="$GITYOU_VERSION_CODE" -PGITYOU_CLIENT_ID="${{ vars.GITYOU_CLIENT_ID }}"
 
       - name: Summarize artifacts
         if: always()

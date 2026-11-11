@@ -10,6 +10,7 @@ import com.gityou.app.data.remote.dto.Label
 import com.gityou.app.data.remote.dto.PrReview
 import com.gityou.app.data.remote.dto.ReactionsSummary
 import com.gityou.app.data.repo.IssuesRepository
+import com.gityou.app.data.telemetry.Telemetry
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
@@ -67,6 +68,7 @@ data class IssueDetailScreenState(
 class IssueDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val issuesRepository: IssuesRepository,
+    private val telemetry: Telemetry,
 ) : ViewModel() {
 
     val owner: String = savedStateHandle.get<String>("owner").orEmpty()
@@ -89,6 +91,8 @@ class IssueDetailViewModel @Inject constructor(
     val managementMessage: StateFlow<Int?> = _managementMessage.asStateFlow()
 
     init {
+        // type only, never owner/repo/number: diagnostics stay content-free (G-017).
+        telemetry.event("issue_opened", mapOf("is_pull" to isPull.toString()))
         load()
     }
 
@@ -189,6 +193,7 @@ class IssueDetailViewModel @Inject constructor(
                             ),
                         )
                     }
+                    telemetry.event("comment_sent")
                     _commentSent.value = true
                 },
                 onFailure = { _ ->
@@ -372,6 +377,7 @@ class IssueDetailViewModel @Inject constructor(
         val current = (_state.value as? UiState.Content)?.value ?: return
         if (current.merging || current.detail.merged) return
         val headSha = current.detail.headSha
+        telemetry.event("merge_attempted", mapOf("method" to method))
         viewModelScope.launch {
             patch { it.copy(merging = true) }
             val result = issuesRepository.merge(owner, repoName, number, method, headSha)
@@ -383,10 +389,22 @@ class IssueDetailViewModel @Inject constructor(
                             detail = it.detail.copy(state = "closed", merged = true),
                         )
                     }
+                    telemetry.event("merge_succeeded", mapOf("method" to method))
                     _managementMessage.value = R.string.pr_merged
                 },
                 onFailure = { t ->
                     patch { it.copy(merging = false) }
+                    telemetry.event(
+                        "merge_failed",
+                        mapOf(
+                            "method" to method,
+                            "reason" to when (t) {
+                                is IssuesRepository.MergeConflictException -> "conflict"
+                                is IssuesRepository.MergeNotAllowedException -> "not_allowed"
+                                else -> "other"
+                            },
+                        ),
+                    )
                     _managementMessage.value = when (t) {
                         is IssuesRepository.MergeConflictException -> R.string.error_merge_conflict
                         is IssuesRepository.MergeNotAllowedException -> R.string.error_merge_not_allowed
@@ -407,6 +425,7 @@ class IssueDetailViewModel @Inject constructor(
                 onSuccess = {
                     patchBusy(false)
                     _managementMessage.value = R.string.review_submitted
+                    telemetry.event("review_submitted", mapOf("event" to event))
                     loadReviews()
                 },
                 onFailure = {

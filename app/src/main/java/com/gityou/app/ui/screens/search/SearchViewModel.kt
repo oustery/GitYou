@@ -6,6 +6,7 @@ import com.gityou.app.data.remote.dto.Issue
 import com.gityou.app.data.remote.dto.Repo
 import com.gityou.app.data.remote.dto.User
 import com.gityou.app.data.repo.ReposRepository
+import com.gityou.app.data.telemetry.Telemetry
 import com.gityou.app.data.util.ApiErrors
 import com.gityou.app.data.util.safeCall
 import com.gityou.app.ui.components.UiState
@@ -54,6 +55,7 @@ data class SearchUi(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val reposRepository: ReposRepository,
+    private val telemetry: Telemetry,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -88,6 +90,9 @@ class SearchViewModel @Inject constructor(
                             _results.value = UiState.Content(SearchUi(type = type, sort = sort))
                         }
                     } else {
+                        // Fired once per settled query (after the debounce),
+                        // not per keystroke (G-017).
+                        telemetry.event("search_performed", mapOf("type" to type.name.lowercase()))
                         _results.value = UiState.Loading
                         _results.value = runSearch(query.trim(), type, sort, page = 1)
                     }

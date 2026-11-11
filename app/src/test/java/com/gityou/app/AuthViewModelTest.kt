@@ -3,6 +3,7 @@ package com.gityou.app
 import com.gityou.app.data.remote.dto.AccessTokenResponse
 import com.gityou.app.data.remote.dto.DeviceCodeResponse
 import com.gityou.app.data.repo.AuthRepository
+import com.gityou.app.data.telemetry.NoopTelemetry
 import com.gityou.app.ui.screens.auth.AuthViewModel
 import com.gityou.app.ui.screens.auth.DeviceFlowPhase
 import io.mockk.coEvery
@@ -49,7 +50,7 @@ class AuthViewModelTest {
             AccessTokenResponse(error = "authorization_pending")
         }
 
-        val viewModel = AuthViewModel(repository, TimeSource.Monotonic)
+        val viewModel = AuthViewModel(repository, TimeSource.Monotonic, NoopTelemetry)
         advanceUntilIdle() // init loads the client id
 
         viewModel.startDeviceFlow()
@@ -83,7 +84,7 @@ class AuthViewModelTest {
             responses[index++.coerceAtMost(responses.lastIndex)]
         }
 
-        val viewModel = AuthViewModel(repository, TimeSource.Monotonic)
+        val viewModel = AuthViewModel(repository, TimeSource.Monotonic, NoopTelemetry)
         advanceUntilIdle()
         viewModel.startDeviceFlow()
 

@@ -1,5 +1,7 @@
 package com.gityou.app.ui.screens.settings
 
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import androidx.compose.foundation.border
@@ -62,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
@@ -71,6 +74,9 @@ import com.gityou.app.R
 import com.gityou.app.data.update.ApkInstaller
 import com.gityou.app.data.update.UpdateInfo
 import com.gityou.app.data.util.Formatters
+import java.io.File
+import java.text.DateFormat
+import java.util.Date
 import com.gityou.app.ui.components.EyebrowLabel
 import com.gityou.app.ui.components.MarkdownText
 import com.gityou.app.ui.components.openUrl
@@ -92,6 +98,7 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
+    val crash by viewModel.crash.collectAsStateWithLifecycle()
     val updateState by updateViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -475,6 +482,89 @@ fun SettingsScreen(
                 }
             }
 
+            // ---- Diagnostics (G-017) ----
+            EyebrowLabel(
+                stringResource(R.string.settings_diagnostics_section),
+                modifier = Modifier.padding(top = Spacing.lg),
+            )
+            SettingsCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_telemetry_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            stringResource(R.string.settings_telemetry_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
+                    Switch(
+                        checked = settings.telemetryEnabled,
+                        onCheckedChange = viewModel::setTelemetryEnabled,
+                    )
+                }
+            }
+            SettingsCard {
+                if (crash.count > 0) {
+                    val lastText = crash.lastAt?.let {
+                        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                            .format(Date(it))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.settings_crash_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                listOfNotNull(
+                                    lastText?.let { stringResource(R.string.settings_crash_last, it) },
+                                    stringResource(R.string.settings_crash_count, crash.count),
+                                ).joinToString("\n"),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = Spacing.xs),
+                            )
+                        }
+                        TextButton(onClick = {
+                            viewModel.latestCrashFile()?.let { file -> shareCrashReport(context, file) }
+                        }) {
+                            Text(stringResource(R.string.settings_crash_share))
+                        }
+                        TextButton(onClick = {
+                            viewModel.clearCrashReports()
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.settings_crash_cleared),
+                                )
+                            }
+                        }) {
+                            Text(stringResource(R.string.settings_crash_clear))
+                        }
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.settings_crash_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        stringResource(R.string.settings_crash_none),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = Spacing.xs),
+                    )
+                }
+            }
+
             // ---- Account ----
             EyebrowLabel(
                 stringResource(R.string.settings_account_section),
@@ -617,11 +707,14 @@ fun SettingsScreen(
 
 /** One grouped settings section drawn as a quiet rounded card. */
 @Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
+private fun SettingsCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = Spacing.sm),
     ) {
@@ -840,3 +933,19 @@ private val lockTimeouts = listOf(0, 1, 5, 15)
 
 /** GitHub's own page for removing an app's authorization (G-016). */
 private const val REVOKE_ACCESS_URL = "https://github.com/settings/applications"
+
+/**
+ * Hands a stored crash report to the user's share sheet (G-017). The report
+ * never leaves the device by itself; sharing is the only way out, and the
+ * user sees exactly what is shared before picking a target.
+ */
+private fun shareCrashReport(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent = Intent(Intent.ACTION_SEND)
+        .setType("application/json")
+        .putExtra(Intent.EXTRA_STREAM, uri)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(
+        Intent.createChooser(intent, context.getString(R.string.settings_crash_share)),
+    )
+}

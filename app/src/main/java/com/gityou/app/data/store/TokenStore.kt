@@ -52,6 +52,12 @@ class TokenStore @Inject constructor(
         val biometricLock: Boolean = false,
         /** Minutes in the background before the lock re-arms; 0 = immediately. */
         val lockTimeoutMinutes: Int = 1,
+        /**
+         * Opt-in local diagnostics journal (G-017). Events are written only
+         * to the app's private storage and never leave the device; turning
+         * this off wipes the journal. Off is the default.
+         */
+        val telemetryEnabled: Boolean = false,
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -89,10 +95,18 @@ class TokenStore @Inject constructor(
         val MARK_READ_ON_OPEN = booleanPreferencesKey("mark_read_on_open")
         val BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
         val LOCK_TIMEOUT = intPreferencesKey("lock_timeout_minutes")
+        val TELEMETRY = booleanPreferencesKey("telemetry_enabled")
     }
 
     @Volatile
     private var cachedToken: String? = null
+
+    /**
+     * Synchronous view of [AppSettings.telemetryEnabled] for the telemetry
+     * gate, which must decide per event without suspending (G-017).
+     */
+    @Volatile
+    private var cachedTelemetryEnabled = false
 
     /**
      * Single source of truth for the unread badge (G-004). The badge used to
@@ -111,6 +125,7 @@ class TokenStore @Inject constructor(
                     cachedToken = withContext(Dispatchers.IO) {
                         tokenCipher.decrypt(prefs[Keys.TOKEN])
                     }
+                    cachedTelemetryEnabled = prefs[Keys.TELEMETRY] ?: false
                 }
         }
         scope.launch { migratePlaintextToken() }
@@ -157,6 +172,7 @@ class TokenStore @Inject constructor(
                 markReadOnOpen = prefs[Keys.MARK_READ_ON_OPEN] ?: true,
                 biometricLock = prefs[Keys.BIOMETRIC_LOCK] ?: false,
                 lockTimeoutMinutes = prefs[Keys.LOCK_TIMEOUT] ?: 1,
+                telemetryEnabled = prefs[Keys.TELEMETRY] ?: false,
             )
         }
 
@@ -245,6 +261,16 @@ class TokenStore @Inject constructor(
     suspend fun saveLockTimeout(minutes: Int) {
         dataStore.edit { it[Keys.LOCK_TIMEOUT] = minutes.coerceAtLeast(0) }
     }
+
+    suspend fun saveTelemetryEnabled(enabled: Boolean) {
+        // Update the snapshot first: events fired right after the flip must
+        // respect the new value even before the DataStore collector wakes up.
+        cachedTelemetryEnabled = enabled
+        dataStore.edit { it[Keys.TELEMETRY] = enabled }
+    }
+
+    /** Blocking read for the telemetry gate; safe to call from any thread. */
+    fun telemetryEnabledSnapshot(): Boolean = cachedTelemetryEnabled
 
     suspend fun saveAppLanguage(language: String) {
         dataStore.edit { it[Keys.APP_LANGUAGE] = language }

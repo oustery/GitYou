@@ -258,6 +258,18 @@
     <string name="settings_cache_size_line">Занято %1$s</string>
     <string name="settings_cache_clear">Очистить</string>
     <string name="settings_cache_cleared">Кэш очищен</string>
+
+    <!-- Diagnostics (G-017): opt-in local telemetry and crash reports -->
+    <string name="settings_diagnostics_section">Диагностика</string>
+    <string name="settings_telemetry_title">Локальный журнал событий</string>
+    <string name="settings_telemetry_body">Записывает, какие экраны и действия вы используете, только в приватное хранилище приложения. По умолчанию выключено; при выключении журнал стирается. Ничего не отправляется.</string>
+    <string name="settings_crash_title">Отчёты о сбоях</string>
+    <string name="settings_crash_none">Сбоев не зафиксировано</string>
+    <string name="settings_crash_last">Последний сбой: %1$s</string>
+    <string name="settings_crash_count">Сохранено отчётов: %1$d</string>
+    <string name="settings_crash_share">Поделиться</string>
+    <string name="settings_crash_clear">Очистить</string>
+    <string name="settings_crash_cleared">Отчёты о сбоях удалены</string>
     <string name="settings_releases">Релизы</string>
 
     <!-- Обновление из приложения (Настройки → О приложении → Проверить обновления) -->
